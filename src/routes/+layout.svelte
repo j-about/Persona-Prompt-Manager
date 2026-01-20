@@ -130,7 +130,7 @@
 				>
 					About
 				</a>
-				<span>v0.1.0</span>
+				<span>v0.1.1</span>
 			</div>
 		</nav>
 		<main class="ml-64 flex-1 bg-base-200 p-8">
