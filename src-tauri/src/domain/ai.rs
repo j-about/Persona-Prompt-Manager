@@ -50,7 +50,7 @@ pub enum AiProvider {
 
 impl AiProvider {
     /// Returns the human-readable display name for UI presentation.
-    #[must_use] 
+    #[must_use]
     pub const fn display_name(&self) -> &'static str {
         match self {
             Self::OpenAI => "OpenAI",
@@ -64,18 +64,16 @@ impl AiProvider {
     /// Returns whether this provider requires an API key for authentication.
     ///
     /// Ollama runs locally and doesn't require authentication.
-    #[must_use] 
+    #[must_use]
     pub const fn requires_api_key(&self) -> bool {
         match self {
-            Self::OpenAI | Self::Anthropic | Self::Google | Self::XAi => {
-                true
-            }
+            Self::OpenAI | Self::Anthropic | Self::Google | Self::XAi => true,
             Self::Ollama => false,
         }
     }
 
     /// Returns the recommended default model for this provider.
-    #[must_use] 
+    #[must_use]
     pub const fn default_model(&self) -> &'static str {
         match self {
             Self::OpenAI => "gpt-5.2-pro",
@@ -87,13 +85,13 @@ impl AiProvider {
     }
 
     /// Returns the default base URL if the provider supports custom endpoints.
-    #[must_use] 
+    #[must_use]
     pub const fn default_base_url(&self) -> Option<&'static str> {
         None
     }
 
     /// Returns all available provider variants.
-    #[must_use] 
+    #[must_use]
     pub const fn all() -> &'static [Self] {
         &[
             Self::OpenAI,
@@ -105,7 +103,7 @@ impl AiProvider {
     }
 
     /// Returns the lowercase string identifier used for serialization.
-    #[must_use] 
+    #[must_use]
     pub const fn id(&self) -> &'static str {
         match self {
             Self::OpenAI => "openai",
@@ -128,7 +126,7 @@ impl AiProvider {
     }
 
     /// Returns metadata for all providers (single source of truth).
-    #[must_use] 
+    #[must_use]
     pub fn all_metadata() -> Vec<AiProviderMetadata> {
         Self::all().iter().map(Self::metadata).collect()
     }
@@ -381,7 +379,7 @@ pub struct AiPersonaGenerationRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct GeneratedTokensByGranularity {
-    /// Style tokens (e.g., "masterpiece", "anime style")
+    /// Style tokens (e.g., "masterpiece", "photorealistic", "anime style", "oil painting")
     pub style: Vec<GeneratedToken>,
     /// General physical trait tokens
     pub general: Vec<GeneratedToken>,

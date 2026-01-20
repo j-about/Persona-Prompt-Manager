@@ -42,7 +42,7 @@ use crate::infrastructure::tokenizer::{self, TokenCount, TokenizerInfo};
 /// - `exceeds_limit`: Whether the prompt is too long
 /// - `usage_percent`: Percentage of limit used (can exceed 100%)
 #[tauri::command]
-#[must_use] 
+#[must_use]
 pub fn count_tokens_for_model(text: String, model_id: Option<String>) -> TokenCount {
     tokenizer::count_tokens(&text, model_id.as_deref())
 }
@@ -59,7 +59,7 @@ pub fn count_tokens_for_model(text: String, model_id: Option<String>) -> TokenCo
 /// - `tokenizer_id`: `HuggingFace` tokenizer used
 /// - `max_tokens`/`usable_tokens`: Token limits
 #[tauri::command]
-#[must_use] 
+#[must_use]
 pub fn get_known_image_models() -> Vec<TokenizerInfo> {
     tokenizer::get_known_models()
 }

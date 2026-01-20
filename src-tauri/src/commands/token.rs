@@ -202,7 +202,7 @@ pub fn reorder_tokens(state: State<AppState>, token_ids: Vec<String>) -> Result<
 ///
 /// Vector of all granularity levels in display order.
 #[tauri::command]
-#[must_use] 
+#[must_use]
 pub fn get_all_granularity_levels() -> Vec<GranularityLevel> {
     GranularityLevel::all()
 }

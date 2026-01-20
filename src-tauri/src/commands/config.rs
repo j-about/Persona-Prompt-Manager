@@ -43,8 +43,7 @@ use crate::domain::DEFAULT_IMAGE_MODEL_ID;
 ///
 /// - [`crate::domain::constants::DEFAULT_IMAGE_MODEL_ID`] - The underlying constant
 #[tauri::command]
-#[must_use] 
+#[must_use]
 pub const fn get_default_image_model_id() -> &'static str {
     DEFAULT_IMAGE_MODEL_ID
 }
-

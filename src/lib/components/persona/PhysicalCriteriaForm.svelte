@@ -616,7 +616,7 @@
 
 	<div class="space-y-6">
 		{#each Object.entries(granularityOptions) as [granularityId, category] (granularityId)}
-			<div class="rounded-lg bg-base-200/50 p-4">
+			<div class="bg-base-200/50 p-4">
 				<h3 class="mb-3 text-sm font-semibold text-base-content">{category.label}</h3>
 
 				{#each category.subgroups as subgroup, subgroupIndex (subgroupIndex)}

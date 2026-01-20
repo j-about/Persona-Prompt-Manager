@@ -316,9 +316,7 @@ fn get_or_load_tokenizer(tokenizer_id: &str) -> Result<Tokenizer, AppError> {
 
     // Load the tokenizer
     let tokenizer = Tokenizer::from_pretrained(tokenizer_id, None).map_err(|e| {
-        AppError::Internal(format!(
-            "Failed to load tokenizer '{tokenizer_id}': {e}"
-        ))
+        AppError::Internal(format!("Failed to load tokenizer '{tokenizer_id}': {e}"))
     })?;
 
     // Cache it
@@ -340,7 +338,7 @@ fn get_or_load_tokenizer(tokenizer_id: &str) -> Result<Tokenizer, AppError> {
 }
 
 /// Get the tokenizer configuration for a model
-#[must_use] 
+#[must_use]
 pub fn get_config_for_model(model_id: &str) -> TokenizerConfig {
     let mappings = get_known_mappings();
 
@@ -515,7 +513,7 @@ impl TokenCount {
 /// Count tokens in a text string for a specific model
 ///
 /// Falls back to simple word counting if the tokenizer is not available.
-#[must_use] 
+#[must_use]
 pub fn count_tokens(text: &str, model_id: Option<&str>) -> TokenCount {
     let model = model_id.unwrap_or(DEFAULT_IMAGE_MODEL_ID);
     let config = get_config_for_model(model);
@@ -576,7 +574,7 @@ pub struct TokenizerInfo {
     pub usable_tokens: usize,
 }
 
-#[must_use] 
+#[must_use]
 pub fn get_tokenizer_info(model_id: Option<&str>) -> TokenizerInfo {
     let model = model_id.unwrap_or(DEFAULT_IMAGE_MODEL_ID);
     let config = get_config_for_model(model);
@@ -592,7 +590,7 @@ pub fn get_tokenizer_info(model_id: Option<&str>) -> TokenizerInfo {
 }
 
 /// Get list of all known model mappings
-#[must_use] 
+#[must_use]
 pub fn get_known_models() -> Vec<TokenizerInfo> {
     let mut models: Vec<TokenizerInfo> = get_known_mappings()
         .iter()
@@ -633,7 +631,7 @@ pub struct ImageModelPromptContext {
 ///
 /// This is the single source of truth for model-specific prompt engineering knowledge.
 /// Uses the same model detection logic as `get_config_for_model()`.
-#[must_use] 
+#[must_use]
 pub fn get_prompt_context_for_model(model_id: Option<&str>) -> ImageModelPromptContext {
     let model = model_id.unwrap_or(DEFAULT_IMAGE_MODEL_ID);
     let model_lower = model.to_lowercase();

@@ -137,7 +137,7 @@ impl Persona {
     /// * `name` - Display name for the persona
     /// * `description` - Optional character description
     /// * `tags` - Organizational tags
-    #[must_use] 
+    #[must_use]
     pub fn new(name: String, description: Option<String>, tags: Vec<String>) -> Self {
         let now = Utc::now();
         Self {
@@ -184,7 +184,7 @@ impl Persona {
 
 impl GenerationParams {
     /// Creates default generation parameters linked to a specific persona.
-    #[must_use] 
+    #[must_use]
     pub fn default_for_persona(persona_id: &str) -> Self {
         Self {
             persona_id: persona_id.to_string(),

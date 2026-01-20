@@ -224,7 +224,7 @@ export interface PhysicalCriteria {
 export interface AiPersonaGenerationRequest {
 	/** Persona name (required) */
 	name: string;
-	/** Desired visual style (e.g., "realistic", "anime", "manga") */
+	/** Desired visual style (e.g., "photorealistic", "anime", "oil painting", "cinematic") */
 	style: string;
 	/** Character description including age, background, biography */
 	characterDescription: string;

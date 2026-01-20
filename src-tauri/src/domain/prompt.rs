@@ -158,7 +158,7 @@ impl PromptComposer {
     ///    - Add to positive or negative parts based on polarity
     /// 4. Optionally inject ad-hoc tokens at the end
     /// 5. Join parts with separator
-    #[must_use] 
+    #[must_use]
     pub fn compose(
         tokens: &[Token],
         granularity_levels: &[GranularityLevel],

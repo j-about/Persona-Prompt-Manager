@@ -46,7 +46,7 @@ impl PersonaExport {
     pub const CURRENT_VERSION: &'static str = "1.0";
 
     /// Creates a new export for a persona with all its data.
-    #[must_use] 
+    #[must_use]
     pub fn new(
         persona: Persona,
         generation_params: GenerationParams,
@@ -86,7 +86,7 @@ impl BulkExport {
     pub const APP_NAME: &'static str = "Persona Prompt Manager";
 
     /// Creates a new bulk export from a list of persona exports.
-    #[must_use] 
+    #[must_use]
     pub fn new(personas: Vec<PersonaExport>) -> Self {
         Self {
             version: Self::CURRENT_VERSION.to_string(),
@@ -117,7 +117,7 @@ pub struct ImportResult {
 
 impl ImportResult {
     /// Creates a successful import result.
-    #[must_use] 
+    #[must_use]
     pub const fn success(persona: Persona, tokens_imported: usize, warnings: Vec<String>) -> Self {
         Self {
             success: true,
@@ -129,7 +129,7 @@ impl ImportResult {
     }
 
     /// Creates a failed import result with an error message.
-    #[must_use] 
+    #[must_use]
     pub const fn failure(error: String) -> Self {
         Self {
             success: false,

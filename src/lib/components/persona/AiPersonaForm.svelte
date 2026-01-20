@@ -38,18 +38,91 @@
 
 	// Style suggestions
 	const styleSuggestions = [
-		'realistic',
-		'photorealistic',
-		'anime',
-		'manga',
-		'cartoon',
-		'oil painting',
-		'watercolor',
-		'digital art',
 		'3D render',
+		'8K',
+		'abstract',
+		'acrylic painting',
+		'anime',
+		'anime style',
+		'art deco',
+		'art nouveau',
+		'baroque',
+		'best quality',
+		'bokeh',
+		'cartoon',
+		'cel-shaded',
+		'charcoal',
+		'chibi',
+		'cinematic',
+		'colored pencil',
 		'concept art',
+		'cubism',
+		'cyberpunk',
+		'dark fantasy',
+		'depth of field',
+		'detailed',
+		'digital art',
+		'digital painting',
+		'documentary',
+		'DSLR',
+		'editorial',
+		'expressionism',
+		'fantasy',
+		'fashion photography',
+		'film grain',
+		'film texture',
+		'fresco',
+		'golden hour',
+		'gothic',
+		'gouache',
+		'graphite',
+		'HDR',
+		'high quality',
+		'highly detailed',
+		'hyper detailed',
+		'hyper realistic',
 		'illustration',
-		'semi-realistic'
+		'impressionism',
+		'ink drawing',
+		'ink wash',
+		'intricate',
+		'long exposure',
+		'low poly',
+		'macro',
+		'manga',
+		'masterpiece',
+		'matte',
+		'minimalist',
+		'noir',
+		'oil painting',
+		'pastel',
+		'pen and ink',
+		'pencil sketch',
+		'photorealistic',
+		'pixel art',
+		'pop art',
+		'portrait photography',
+		'professional photography',
+		'realistic',
+		'renaissance',
+		'romanticism',
+		'sci-fi',
+		'semi-realistic',
+		'sharp focus',
+		'soft lighting',
+		'steampunk',
+		'street photography',
+		'Studio Ghibli',
+		'studio lighting',
+		'surrealism',
+		'tempera',
+		'ultra detailed',
+		'vaporwave',
+		'vector art',
+		'vintage photography',
+		'visual novel',
+		'volumetric lighting',
+		'watercolor'
 	];
 
 	// Provider data from config store
@@ -71,7 +144,6 @@
 	const isValid = $derived(
 		name.trim().length > 0 &&
 			style.trim().length > 0 &&
-			characterDescription.trim().length > 0 &&
 			aiProviderId !== null &&
 			(aiModelId?.trim().length ?? 0) > 0
 	);
@@ -311,38 +383,44 @@
 			</div>
 
 			<div>
-				<label for="style" class="label">
-					<span class="label-text">Visual Style <span class="text-error">*</span></span>
-				</label>
-				<input
-					type="text"
-					id="style"
-					bind:value={style}
-					required
-					class="input-bordered input w-full"
-					placeholder="e.g., realistic, anime, photorealistic, oil painting"
-					list="style-suggestions"
-				/>
-				<datalist id="style-suggestions">
-					{#each styleSuggestions as suggestion (suggestion)}
-						<option value={suggestion}></option>
-					{/each}
-				</datalist>
-			</div>
-
-			<div>
 				<label for="description" class="label">
-					<span class="label-text">Character Description <span class="text-error">*</span></span>
+					<span class="label-text">Character Description</span>
 				</label>
 				<textarea
 					id="description"
 					bind:value={characterDescription}
-					required
 					rows={5}
 					class="textarea-bordered textarea w-full"
-					placeholder="Describe ethnicity, nationality, age, background, biography, personality, and any distinctive physical features. The more detailed, the less you need to specify below."
+					placeholder="Optional: Describe ethnicity, nationality, age, background, biography, personality, and any distinctive physical features. If not provided, AI will derive from style and physical criteria."
 				></textarea>
 			</div>
+		</div>
+	</Card>
+
+	<!-- Visual Style -->
+	<Card>
+		<h2 class="mb-4 text-lg font-semibold text-base-content">Visual Style</h2>
+		<p class="mb-4 text-xs text-base-content/60">
+			Select or enter the visual art style for image generation.
+		</p>
+		<div>
+			<label for="style" class="label">
+				<span class="label-text">Style <span class="text-error">*</span></span>
+			</label>
+			<input
+				type="text"
+				id="style"
+				bind:value={style}
+				required
+				class="input-bordered input w-full"
+				placeholder="e.g., realistic, anime, photorealistic, oil painting"
+				list="style-suggestions"
+			/>
+			<datalist id="style-suggestions">
+				{#each styleSuggestions as suggestion (suggestion)}
+					<option value={suggestion}></option>
+				{/each}
+			</datalist>
 		</div>
 	</Card>
 

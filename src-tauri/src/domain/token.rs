@@ -42,7 +42,7 @@ pub enum TokenPolarity {
 
 impl TokenPolarity {
     /// Returns the lowercase string representation for database storage.
-    #[must_use] 
+    #[must_use]
     pub const fn as_str(&self) -> &'static str {
         match self {
             Self::Positive => "positive",
@@ -51,7 +51,7 @@ impl TokenPolarity {
     }
 
     /// Parses from database string representation.
-    #[must_use] 
+    #[must_use]
     pub fn parse(s: &str) -> Option<Self> {
         match s {
             "positive" => Some(Self::Positive),
@@ -87,7 +87,7 @@ pub enum Granularity {
 
 impl Granularity {
     /// Returns the `snake_case` string ID used in database and serialization.
-    #[must_use] 
+    #[must_use]
     pub const fn as_str(&self) -> &'static str {
         match self {
             Self::Style => "style",
@@ -101,7 +101,7 @@ impl Granularity {
     }
 
     /// Parses from string representation.
-    #[must_use] 
+    #[must_use]
     pub fn parse(s: &str) -> Option<Self> {
         match s {
             "style" => Some(Self::Style),
@@ -116,7 +116,7 @@ impl Granularity {
     }
 
     /// Returns the human-readable display name for UI.
-    #[must_use] 
+    #[must_use]
     pub const fn display_name(&self) -> &'static str {
         match self {
             Self::Style => "Style",
@@ -130,7 +130,7 @@ impl Granularity {
     }
 
     /// Returns the sort order for display (0 = first, 6 = last).
-    #[must_use] 
+    #[must_use]
     pub const fn display_order(&self) -> i32 {
         match self {
             Self::Style => 0,
@@ -144,7 +144,7 @@ impl Granularity {
     }
 
     /// Returns all granularity variants in display order.
-    #[must_use] 
+    #[must_use]
     pub const fn all() -> &'static [Self] {
         &[
             Self::Style,
@@ -277,7 +277,7 @@ impl From<Granularity> for GranularityLevel {
 
 impl GranularityLevel {
     /// Returns all granularity levels in display order.
-    #[must_use] 
+    #[must_use]
     pub fn all() -> Vec<Self> {
         Granularity::all().iter().map(|&g| g.into()).collect()
     }
@@ -294,7 +294,7 @@ impl Token {
     /// * `content` - Descriptive text
     /// * `weight` - Weight modifier
     /// * `display_order` - Sort position within group
-    #[must_use] 
+    #[must_use]
     pub fn new(
         persona_id: String,
         granularity_id: String,
@@ -344,7 +344,7 @@ impl Token {
     ///
     /// - If `include_weight` is false or weight is 1.0: returns content as-is
     /// - Otherwise: returns `(content:weight)` format
-    #[must_use] 
+    #[must_use]
     pub fn format_for_prompt(&self, include_weight: bool) -> String {
         if include_weight && (self.weight - 1.0).abs() > f64::EPSILON {
             format!("({}:{:.1})", self.content, self.weight)
@@ -358,7 +358,7 @@ impl BatchCreateTokenRequest {
     /// Parses the comma-separated contents into individual token strings.
     ///
     /// Empty strings after trimming are filtered out.
-    #[must_use] 
+    #[must_use]
     pub fn parse_contents(&self) -> Vec<String> {
         self.contents
             .split(',')

@@ -216,8 +216,10 @@ impl TokenRepository {
             weight: row.get(5)?,
             display_order: row.get(6)?,
             // Timestamps stored as RFC3339 strings; fallback to now if parsing fails
-            created_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(7)?).map_or_else(|_| Utc::now(), |dt| dt.with_timezone(&Utc)),
-            updated_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(8)?).map_or_else(|_| Utc::now(), |dt| dt.with_timezone(&Utc)),
+            created_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(7)?)
+                .map_or_else(|_| Utc::now(), |dt| dt.with_timezone(&Utc)),
+            updated_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(8)?)
+                .map_or_else(|_| Utc::now(), |dt| dt.with_timezone(&Utc)),
         })
     }
 }

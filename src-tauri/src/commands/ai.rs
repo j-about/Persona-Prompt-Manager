@@ -119,7 +119,7 @@ pub async fn generate_ai_token_suggestions(
 ///
 /// Default `AiProviderConfig` for the specified provider.
 #[tauri::command]
-#[must_use] 
+#[must_use]
 pub fn get_ai_provider_config(provider: AiProvider) -> AiProviderConfig {
     AiProviderConfig::new(provider)
 }
@@ -138,7 +138,7 @@ pub fn get_ai_provider_config(provider: AiProvider) -> AiProviderConfig {
 /// - `requires_api_key`: Whether provider needs authentication
 /// - `default_model`: Recommended model for the provider
 #[tauri::command]
-#[must_use] 
+#[must_use]
 pub fn get_ai_provider_metadata() -> Vec<AiProviderMetadata> {
     AiProvider::all_metadata()
 }
