@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Card, Button } from '$lib/components/ui';
+	import { Card, Button, ApiKeyModal } from '$lib/components/ui';
 	import { configStore, personaStore } from '$lib/stores';
-	import { getApiKey } from '$lib/services/settings';
+	import { getApiKey, getApiKeyStatus, type ApiKeyStatus } from '$lib/services/settings';
 	import { generatePersonaWithAi, getAiProviderConfig } from '$lib/services/ai';
 	import { getDefaultImageModelId } from '$lib/services/config';
 	import { createPersona, updatePersona, updateGenerationParams } from '$lib/services/persona';
@@ -35,6 +35,12 @@
 	// UI state
 	let isLoading = $state(false);
 	let error = $state<string | null>(null);
+
+	// API key status state
+	let apiKeyStatuses = $state<ApiKeyStatus[]>([]);
+
+	// API Key Modal state
+	let showApiKeyModal = $state(false);
 
 	// Style suggestions
 	const styleSuggestions = [
@@ -140,12 +146,22 @@
 	// Existing tags from all personas (for AI to prefer over creating new ones)
 	const existingTags = $derived([...new Set(personaStore.personas.flatMap((p) => p.tags))].sort());
 
+	// Check if selected provider requires an API key that is missing
+	const selectedProviderMissingApiKey = $derived.by(() => {
+		if (!aiProviderId) return false;
+		const provider = configStore.getProviderById(aiProviderId);
+		if (!provider?.requiresApiKey) return false;
+		const status = apiKeyStatuses.find((s) => s.provider === aiProviderId);
+		return !status?.has_key;
+	});
+
 	// Form validation
 	const isValid = $derived(
 		name.trim().length > 0 &&
 			style.trim().length > 0 &&
 			aiProviderId !== null &&
-			(aiModelId?.trim().length ?? 0) > 0
+			(aiModelId?.trim().length ?? 0) > 0 &&
+			!selectedProviderMissingApiKey
 	);
 
 	function handleProviderChange() {
@@ -157,10 +173,19 @@
 		}
 	}
 
-	// Load default image model and personas on mount
+	async function handleApiKeySaved() {
+		apiKeyStatuses = await getApiKeyStatus();
+	}
+
+	// Load default image model, personas, and API key status on mount
 	onMount(async () => {
 		try {
-			imageModelId = await getDefaultImageModelId();
+			const [defaultModel, statuses] = await Promise.all([
+				getDefaultImageModelId(),
+				getApiKeyStatus()
+			]);
+			imageModelId = defaultModel;
+			apiKeyStatuses = statuses;
 			// Load personas to get existing tags (if not already loaded)
 			if (personaStore.personas.length === 0) {
 				await personaStore.loadAll();
@@ -295,6 +320,20 @@
 						<option value={provider.id}>{provider.displayName}</option>
 					{/each}
 				</select>
+				{#if aiProviderId && selectedProviderMissingApiKey}
+					<div role="alert" class="mt-2 alert alert-soft alert-warning">
+						<span>
+							API key required for {configStore.getProviderById(aiProviderId)?.displayName}.
+							<button
+								type="button"
+								class="link link-primary"
+								onclick={() => (showApiKeyModal = true)}
+							>
+								Configure API Key
+							</button>
+						</span>
+					</div>
+				{/if}
 			</div>
 
 			{#if aiProviderId}
@@ -442,3 +481,14 @@
 		</Button>
 	</div>
 </form>
+
+{#if aiProviderId}
+	{@const provider = configStore.getProviderById(aiProviderId)}
+	<ApiKeyModal
+		bind:open={showApiKeyModal}
+		providerId={aiProviderId}
+		providerDisplayName={provider?.displayName ?? aiProviderId}
+		hasExistingKey={false}
+		onsave={handleApiKeySaved}
+	/>
+{/if}

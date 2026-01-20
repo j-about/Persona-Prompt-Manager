@@ -1,4 +1,5 @@
 // UI Components
+export { default as ApiKeyModal } from './ApiKeyModal.svelte';
 export { default as Badge } from './Badge.svelte';
 export { default as Button } from './Button.svelte';
 export { default as Card } from './Card.svelte';

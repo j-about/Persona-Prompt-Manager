@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Card, Button } from '$lib/components/ui';
+	import { Card, Button, ApiKeyModal } from '$lib/components/ui';
 	import { configStore, tokenStore } from '$lib/stores';
 	import {
 		exportAllPersonas,
@@ -8,12 +8,7 @@
 		parseImportJson,
 		importPersonas
 	} from '$lib/services/export';
-	import {
-		getApiKeyStatus,
-		storeApiKey,
-		deleteApiKey,
-		type ApiKeyStatus
-	} from '$lib/services/settings';
+	import { getApiKeyStatus, deleteApiKey, type ApiKeyStatus } from '$lib/services/settings';
 	import type { AiProvider, ImportOptions } from '$lib/types';
 
 	// State
@@ -27,9 +22,6 @@
 	let apiKeyStatuses = $state<ApiKeyStatus[]>([]);
 	let showApiKeyModal = $state(false);
 	let selectedProvider = $state<AiProvider | null>(null);
-	let apiKeyInput = $state('');
-	let isSavingApiKey = $state(false);
-	let apiKeyError = $state<string | null>(null);
 
 	// Helper to check if a provider has a key configured
 	function hasKey(provider: AiProvider): boolean {
@@ -47,33 +39,12 @@
 
 	function openApiKeyModal(provider: AiProvider) {
 		selectedProvider = provider;
-		apiKeyInput = '';
-		apiKeyError = null;
 		showApiKeyModal = true;
 	}
 
 	function closeApiKeyModal() {
 		showApiKeyModal = false;
 		selectedProvider = null;
-		apiKeyInput = '';
-		apiKeyError = null;
-	}
-
-	async function handleSaveApiKey() {
-		if (!selectedProvider || !apiKeyInput.trim()) return;
-
-		isSavingApiKey = true;
-		apiKeyError = null;
-
-		try {
-			await storeApiKey(selectedProvider, apiKeyInput.trim());
-			await loadApiKeyStatus();
-			closeApiKeyModal();
-		} catch (error) {
-			apiKeyError = error instanceof Error ? error.message : 'Failed to save API key';
-		} finally {
-			isSavingApiKey = false;
-		}
 	}
 
 	async function handleDeleteApiKey(provider: AiProvider) {
@@ -247,49 +218,14 @@
 </div>
 
 <!-- API Key Modal -->
-{#if showApiKeyModal && selectedProvider}
-	{@const modalProviderInfo = configStore.getProviderById(selectedProvider)}
-	<dialog class="modal-open modal">
-		<div class="modal-box">
-			<h3 class="text-lg font-bold">
-				{hasKey(selectedProvider) ? 'Update' : 'Set'} API Key
-			</h3>
-			<p class="py-2 text-sm text-base-content/70">
-				Enter your API key for {modalProviderInfo?.displayName ?? selectedProvider}. The key will be
-				stored securely in your system keyring.
-			</p>
-
-			{#if apiKeyError}
-				<div role="alert" class="my-4 alert alert-soft alert-error">
-					<span>{apiKeyError}</span>
-				</div>
-			{/if}
-
-			<div class="form-control mt-4">
-				<label for="apiKey" class="label">
-					<span class="label-text">API Key</span>
-				</label>
-				<input
-					type="password"
-					id="apiKey"
-					bind:value={apiKeyInput}
-					placeholder="Enter your API key"
-					class="input-bordered input w-full"
-					onkeydown={(e) => e.key === 'Enter' && handleSaveApiKey()}
-				/>
-			</div>
-
-			<div class="modal-action">
-				<Button variant="secondary" onclick={closeApiKeyModal} disabled={isSavingApiKey}>
-					Cancel
-				</Button>
-				<Button onclick={handleSaveApiKey} disabled={isSavingApiKey || !apiKeyInput.trim()}>
-					{isSavingApiKey ? 'Saving...' : 'Save'}
-				</Button>
-			</div>
-		</div>
-		<form method="dialog" class="modal-backdrop">
-			<button onclick={closeApiKeyModal}>close</button>
-		</form>
-	</dialog>
+{#if selectedProvider}
+	{@const providerInfo = configStore.getProviderById(selectedProvider)}
+	<ApiKeyModal
+		bind:open={showApiKeyModal}
+		providerId={selectedProvider}
+		providerDisplayName={providerInfo?.displayName ?? selectedProvider}
+		hasExistingKey={hasKey(selectedProvider)}
+		onsave={loadApiKeyStatus}
+		onclose={closeApiKeyModal}
+	/>
 {/if}

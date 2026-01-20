@@ -3,9 +3,10 @@
 	import type { Persona, CreatePersonaRequest, UpdatePersonaRequest } from '$lib/types';
 	import type { Snippet } from 'svelte';
 	import { configStore } from '$lib/stores';
-	import { Card, Button } from '$lib/components/ui';
+	import { Card, Button, ApiKeyModal } from '$lib/components/ui';
 	import { getGenerationParams, updateGenerationParams } from '$lib/services/persona';
 	import { getDefaultImageModelId } from '$lib/services/config';
+	import { getApiKeyStatus, type ApiKeyStatus } from '$lib/services/settings';
 
 	interface Props {
 		persona?: Persona | null;
@@ -45,12 +46,29 @@
 	let sampler = $state<string | null>(null);
 	let scheduler = $state<string | null>(null);
 
+	// API key status state
+	let apiKeyStatuses = $state<ApiKeyStatus[]>([]);
+
+	// API Key Modal state
+	let showApiKeyModal = $state(false);
+
 	const isEditMode = $derived(persona !== null);
 	const submitLabel = $derived(isEditMode ? 'Save Changes' : 'Create Persona');
 
-	// Validation - model is required when provider is selected
+	// Check if selected provider requires an API key that is missing
+	const selectedProviderMissingApiKey = $derived.by(() => {
+		if (!aiProviderId) return false;
+		const provider = configStore.getProviderById(aiProviderId);
+		if (!provider?.requiresApiKey) return false;
+		const status = apiKeyStatuses.find((s) => s.provider === aiProviderId);
+		return !status?.has_key;
+	});
+
+	// Validation - model is required when provider is selected, and API key must be configured
 	const isValid = $derived(
-		name.trim().length > 0 && (!aiProviderId || (aiModelId?.trim().length ?? 0) > 0)
+		name.trim().length > 0 &&
+			(!aiProviderId || (aiModelId?.trim().length ?? 0) > 0) &&
+			!selectedProviderMissingApiKey
 	);
 
 	// Data from config store (pre-sorted by backend)
@@ -64,8 +82,15 @@
 		}))
 	);
 
-	// Load generation params on mount
+	// Load generation params and API key status on mount
 	onMount(async () => {
+		// Load API key status first (needed for provider validation)
+		try {
+			apiKeyStatuses = await getApiKeyStatus();
+		} catch (error) {
+			console.error('Failed to load API key status:', error);
+		}
+
 		if (persona) {
 			// Edit mode: load existing generation params
 			try {
@@ -160,6 +185,10 @@
 			aiModelId = null;
 			aiInstructions = '';
 		}
+	}
+
+	async function handleApiKeySaved() {
+		apiKeyStatuses = await getApiKeyStatus();
 	}
 </script>
 
@@ -331,6 +360,20 @@
 							<option value={provider.id}>{provider.displayName}</option>
 						{/each}
 					</select>
+					{#if aiProviderId && selectedProviderMissingApiKey}
+						<div role="alert" class="mt-2 alert alert-soft alert-warning">
+							<span>
+								API key required for {configStore.getProviderById(aiProviderId)?.displayName}.
+								<button
+									type="button"
+									class="link link-primary"
+									onclick={() => (showApiKeyModal = true)}
+								>
+									Configure API Key
+								</button>
+							</span>
+						</div>
+					{/if}
 				</div>
 
 				{#if aiProviderId}
@@ -395,3 +438,14 @@
 		</Button>
 	</div>
 </form>
+
+{#if aiProviderId}
+	{@const provider = configStore.getProviderById(aiProviderId)}
+	<ApiKeyModal
+		bind:open={showApiKeyModal}
+		providerId={aiProviderId}
+		providerDisplayName={provider?.displayName ?? aiProviderId}
+		hasExistingKey={false}
+		onsave={handleApiKeySaved}
+	/>
+{/if}

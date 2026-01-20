@@ -12,12 +12,12 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 	import { onMount } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { resolve } from '$app/paths';
-	import { Card, Button, TokenCountBadge } from '$lib/components/ui';
+	import { Card, Button, TokenCountBadge, ApiKeyModal } from '$lib/components/ui';
 	import { configStore, personaStore, tokenStore } from '$lib/stores';
 	import { composePrompt, copyToClipboard } from '$lib/services/prompt';
 	import { countTokens } from '$lib/services/tokenizer';
 	import { generateTokens, getAiProviderConfig } from '$lib/services/ai';
-	import { getApiKey } from '$lib/services/settings';
+	import { getApiKey, getApiKeyStatus, type ApiKeyStatus } from '$lib/services/settings';
 	import { getGenerationParams } from '$lib/services/persona';
 	import type {
 		ComposedPrompt,
@@ -69,6 +69,12 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 	/** Generation params for the selected persona (provides image model context) */
 	let generationParams = $state<GenerationParams | null>(null);
 
+	/** API key status for all providers */
+	let apiKeyStatuses = $state<ApiKeyStatus[]>([]);
+
+	/** API Key Modal state */
+	let showApiKeyModal = $state(false);
+
 	// ==================== Derived State ====================
 	/** Currently selected persona object */
 	const selectedPersona = $derived(
@@ -91,12 +97,26 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 		selectedPersona?.ai_provider_id != null && selectedPersona?.ai_model_id != null
 	);
 
+	/** Check if the selected persona's AI provider requires an API key that is missing */
+	const selectedProviderMissingApiKey = $derived.by(() => {
+		if (!selectedPersona?.ai_provider_id) return false;
+		const provider = configStore.getProviderById(selectedPersona.ai_provider_id);
+		if (!provider?.requiresApiKey) return false;
+		const status = apiKeyStatuses.find((s) => s.provider === selectedPersona.ai_provider_id);
+		return !status?.has_key;
+	});
+
 	/**
-	 * Initializes page data: loads personas, granularity levels,
+	 * Initializes page data: loads personas, granularity levels, API key status,
 	 * selects all granularities, and auto-selects first persona.
 	 */
 	onMount(async () => {
-		await Promise.all([personaStore.loadAll(), tokenStore.loadGranularityLevels()]);
+		const [, , statuses] = await Promise.all([
+			personaStore.loadAll(),
+			tokenStore.loadGranularityLevels(),
+			getApiKeyStatus()
+		]);
+		apiKeyStatuses = statuses;
 
 		for (const level of tokenStore.granularityLevels) {
 			selectedGranularityIds.add(level.id);
@@ -339,6 +359,11 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 			aiGeneratedNegative = aiGeneratedNegative.filter((t) => t !== token);
 		}
 	}
+
+	/** Refreshes API key status after successful save */
+	async function handleApiKeySaved() {
+		apiKeyStatuses = await getApiKeyStatus();
+	}
 </script>
 
 <div>
@@ -502,10 +527,29 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 						</div>
 					{/if}
 
+					{#if selectedProviderMissingApiKey}
+						<div role="alert" class="alert alert-soft alert-warning">
+							<span>
+								API key required for {configStore.getProviderById(
+									selectedPersona?.ai_provider_id ?? ''
+								)?.displayName}.
+								<button
+									type="button"
+									class="link link-primary"
+									onclick={() => (showApiKeyModal = true)}
+								>
+									Configure API Key
+								</button>
+							</span>
+						</div>
+					{/if}
+
 					<div class="flex flex-col gap-2">
 						<Button
 							onclick={handleGenerateAiTokens}
-							disabled={isGeneratingAiTokens || !aiContextDescription.trim()}
+							disabled={isGeneratingAiTokens ||
+								!aiContextDescription.trim() ||
+								selectedProviderMissingApiKey}
 						>
 							{isGeneratingAiTokens ? 'Generating...' : 'Generate Tokens'}
 						</Button>
@@ -703,3 +747,15 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 		{/if}
 	</Card>
 </div>
+
+{#if selectedPersona?.ai_provider_id}
+	{@const providerId = selectedPersona.ai_provider_id}
+	{@const provider = configStore.getProviderById(providerId)}
+	<ApiKeyModal
+		bind:open={showApiKeyModal}
+		{providerId}
+		providerDisplayName={provider?.displayName ?? providerId}
+		hasExistingKey={false}
+		onsave={handleApiKeySaved}
+	/>
+{/if}
