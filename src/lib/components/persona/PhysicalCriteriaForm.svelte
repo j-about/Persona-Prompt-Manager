@@ -95,7 +95,24 @@
 						{
 							id: 'age',
 							label: 'Age',
-							options: ['No preference', 'Young adult', 'Adult', 'Middle-aged', 'Mature', 'Elderly']
+							options: [
+								'No preference',
+								'Infant (0-1)',
+								'Toddler (1-3)',
+								'Preschooler (3-6)',
+								'Child (6-9)',
+								'Preteen (10-12)',
+								'Early teen (13-15)',
+								'Late teen (16-19)',
+								'Young adult (20-29)',
+								'Adult (30-39)',
+								'Early middle-aged (40-49)',
+								'Late middle-aged (50-59)',
+								'Early senior (60-69)',
+								'Senior (70-79)',
+								'Elderly (80-89)',
+								'Very elderly (90+)'
+							]
 						}
 					]
 				},
@@ -104,7 +121,7 @@
 					fields: [
 						{
 							id: 'skinTone',
-							label: 'Skin Tone',
+							label: 'Tone',
 							options: [
 								'No preference',
 								'Fair',
@@ -124,7 +141,7 @@
 						},
 						{
 							id: 'skinTexture',
-							label: 'Skin Texture',
+							label: 'Texture',
 							options: [
 								'No preference',
 								'Smooth',
@@ -156,7 +173,7 @@
 					fields: [
 						{
 							id: 'bodyType',
-							label: 'Body Type',
+							label: 'Type',
 							options: [
 								'No preference',
 								'Petite',
@@ -210,7 +227,7 @@
 					fields: [
 						{
 							id: 'color',
-							label: 'Main Color',
+							label: 'Main',
 							options: ['No preference', 'Blonde', 'Red', 'Brown', 'Black', 'Gray/White', 'Fantasy']
 						}
 					]
@@ -272,7 +289,7 @@
 						},
 						{
 							id: 'faceShape',
-							label: 'Face Shape',
+							label: 'Shape',
 							options: [
 								'No preference',
 								'Oval',
@@ -314,7 +331,7 @@
 					fields: [
 						{
 							id: 'eyebrowShape',
-							label: 'Eyebrow Shape',
+							label: 'Shape',
 							options: [
 								'No preference',
 								'Arched',
@@ -333,7 +350,7 @@
 					fields: [
 						{
 							id: 'eyeColor',
-							label: 'Eye Color',
+							label: 'Color',
 							options: [
 								'No preference',
 								'Gray',
@@ -350,7 +367,7 @@
 						},
 						{
 							id: 'eyeShape',
-							label: 'Eye Shape',
+							label: 'Shape',
 							options: [
 								'No preference',
 								'Almond',
@@ -370,7 +387,7 @@
 					fields: [
 						{
 							id: 'noseShape',
-							label: 'Nose Shape',
+							label: 'Shape',
 							options: [
 								'No preference',
 								'Straight',
