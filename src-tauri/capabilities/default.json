@@ -3,5 +3,13 @@
 	"identifier": "default",
 	"description": "Default capabilities for the application",
 	"windows": ["main"],
-	"permissions": ["core:default", "process:default", "os:default"]
+	"permissions": [
+		"core:default",
+		"process:default",
+		"os:default",
+		{
+			"identifier": "opener:allow-open-url",
+			"allow": [{ "url": "https://buy.stripe.com/*" }]
+		}
+	]
 }

@@ -54,9 +54,7 @@
 		}
 	},
 	"plugins": {
-		"shell": {
-			"open": true
-		},
+		"opener": {},
 		"process": {},
 		"os": {}
 	}

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { open } from '@tauri-apps/plugin-shell';
+	import { openUrl } from '@tauri-apps/plugin-opener';
 	import { exit } from '@tauri-apps/plugin-process';
 	import { Button } from '$lib/components/ui';
 	import { donationStore } from '$lib/stores';
@@ -19,7 +19,7 @@
 	});
 
 	async function handleDonate(amount: keyof typeof STRIPE_LINKS) {
-		await open(STRIPE_LINKS[amount]);
+		await openUrl(STRIPE_LINKS[amount]);
 	}
 
 	function handleReturnToApp() {
