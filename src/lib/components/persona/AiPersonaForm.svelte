@@ -61,10 +61,8 @@
 		}))
 	);
 
-	// Image models from config store (sorted for UI)
-	const knownModels = $derived(
-		[...configStore.imageModels].sort((a, b) => a.model_id.localeCompare(b.model_id))
-	);
+	// Image models from config store (pre-sorted by backend)
+	const knownModels = $derived(configStore.imageModels);
 
 	// Existing tags from all personas (for AI to prefer over creating new ones)
 	const existingTags = $derived([...new Set(personaStore.personas.flatMap((p) => p.tags))].sort());

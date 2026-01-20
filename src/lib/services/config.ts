@@ -29,24 +29,3 @@ import { tauriInvoke } from './tauri';
 export async function getDefaultImageModelId(): Promise<string> {
 	return tauriInvoke<string>('get_default_image_model_id');
 }
-
-/**
- * Retrieves the list of valid AI provider identifiers from the backend.
- *
- * This function fetches the provider IDs from the Rust backend rather than
- * hardcoding them in TypeScript, ensuring a single source of truth.
- *
- * @returns Promise resolving to array of provider ID strings
- *          (e.g., ["openai", "anthropic", "google", "xai", "ollama"])
- *
- * @example
- * ```typescript
- * const providerIds = await getAiProviderIds();
- * // Use providerIds for validation or iteration
- * ```
- *
- * @see src-tauri/src/domain/ai.rs - Rust source of truth
- */
-export async function getAiProviderIds(): Promise<string[]> {
-	return tauriInvoke<string[]>('list_ai_provider_ids');
-}

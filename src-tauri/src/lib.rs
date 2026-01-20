@@ -122,7 +122,6 @@ pub fn run() {
             commands::settings::check_credential_store,
             // Configuration commands
             commands::config::get_default_image_model_id,
-            commands::config::list_ai_provider_ids,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

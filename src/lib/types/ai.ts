@@ -5,11 +5,8 @@
 /**
  * AI provider identifier string.
  *
- * Valid provider IDs are fetched from the Rust backend via `getAiProviderIds()`,
- * ensuring a single source of truth. The backend defines the canonical list
- * in `src-tauri/src/domain/ai.rs`.
+ * Valid provider IDs are defined in the Rust backend as the canonical source of truth.
  *
- * @see src/lib/services/config.ts - getAiProviderIds()
  * @see src-tauri/src/domain/ai.rs - Rust source of truth
  */
 export type AiProvider = string;

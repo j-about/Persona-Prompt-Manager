@@ -594,7 +594,7 @@ pub fn get_tokenizer_info(model_id: Option<&str>) -> TokenizerInfo {
 /// Get list of all known model mappings
 #[must_use] 
 pub fn get_known_models() -> Vec<TokenizerInfo> {
-    get_known_mappings()
+    let mut models: Vec<TokenizerInfo> = get_known_mappings()
         .iter()
         .map(|(model_id, config)| TokenizerInfo {
             model_id: (*model_id).to_string(),
@@ -603,7 +603,14 @@ pub fn get_known_models() -> Vec<TokenizerInfo> {
             max_tokens: config.max_tokens,
             usable_tokens: config.usable_tokens,
         })
-        .collect()
+        .collect();
+
+    models.sort_by(|a, b| {
+        let name_a = a.model_id.rsplit('/').next().unwrap_or(&a.model_id);
+        let name_b = b.model_id.rsplit('/').next().unwrap_or(&b.model_id);
+        name_a.cmp(name_b)
+    });
+    models
 }
 
 // ============================================================================

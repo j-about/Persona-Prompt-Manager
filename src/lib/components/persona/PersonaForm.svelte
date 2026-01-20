@@ -53,10 +53,8 @@
 		name.trim().length > 0 && (!aiProviderId || (aiModelId?.trim().length ?? 0) > 0)
 	);
 
-	// Data from config store (sorted for UI)
-	const knownModels = $derived(
-		[...configStore.imageModels].sort((a, b) => a.model_id.localeCompare(b.model_id))
-	);
+	// Data from config store (pre-sorted by backend)
+	const knownModels = $derived(configStore.imageModels);
 
 	const aiProviders = $derived(
 		configStore.aiProviders.map((p) => ({

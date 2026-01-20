@@ -16,9 +16,8 @@
 //! # Available Commands
 //!
 //! - [`get_default_image_model_id`] - Default model for image generation
-//! - [`list_ai_provider_ids`] - Valid AI provider identifiers
 
-use crate::domain::{AiProvider, DEFAULT_IMAGE_MODEL_ID};
+use crate::domain::DEFAULT_IMAGE_MODEL_ID;
 
 // ============================================================================
 // Image Generation Configuration
@@ -49,32 +48,3 @@ pub const fn get_default_image_model_id() -> &'static str {
     DEFAULT_IMAGE_MODEL_ID
 }
 
-// ============================================================================
-// AI Provider Configuration
-// ============================================================================
-
-/// Returns the list of valid AI provider identifiers.
-///
-/// This command exposes the provider IDs from [`AiProvider::all`] to the frontend,
-/// ensuring both layers use the same valid provider values without duplication.
-///
-/// # Returns
-///
-/// A vector of lowercase provider identifier strings (e.g., `["openai", "anthropic", ...]`).
-///
-/// # Example (TypeScript)
-///
-/// ```typescript
-/// const providerIds = await invoke<string[]>('list_ai_provider_ids');
-/// // Returns: ["openai", "anthropic", "google", "xai", "ollama"]
-/// ```
-///
-/// # See Also
-///
-/// - [`crate::domain::ai::AiProvider`] - The underlying provider enum
-/// - [`crate::domain::ai::AiProvider::id`] - Method returning the ID for each provider
-#[tauri::command]
-#[must_use] 
-pub fn list_ai_provider_ids() -> Vec<&'static str> {
-    AiProvider::all().iter().map(super::super::domain::ai::AiProvider::id).collect()
-}

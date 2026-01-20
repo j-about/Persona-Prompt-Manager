@@ -20,7 +20,6 @@
 //! - [`prompt`]: Prompt composition logic and output formatting
 //! - [`ai`]: AI provider configuration and token generation types
 //! - [`export`]: Import/export data structures for backup and sharing
-//! - [`settings`]: Application-wide configuration types
 //!
 //! # Design Principles
 //!
@@ -33,7 +32,6 @@ pub mod constants;
 pub mod export;
 pub mod persona;
 pub mod prompt;
-pub mod settings;
 pub mod token;
 
 // Re-export commonly used types for ergonomic imports
@@ -44,7 +42,6 @@ pub use ai::{
 pub use export::{BulkExport, ImportConflictStrategy, ImportOptions, ImportResult, PersonaExport};
 pub use persona::{CreatePersonaRequest, GenerationParams, Persona, UpdatePersonaRequest};
 pub use prompt::{ComposePromptRequest, ComposedPrompt, CompositionOptions, PromptComposer};
-pub use settings::{AppSettings, SettingKey, Theme};
 pub use token::{
     BatchCreateTokenRequest, CreateTokenRequest, Granularity, GranularityLevel, Token,
     TokenPolarity, UpdateTokenRequest,
