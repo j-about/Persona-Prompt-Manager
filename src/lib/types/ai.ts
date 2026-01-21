@@ -110,12 +110,14 @@ export interface PhysicalCriteriaGeneral {
 	bodyType?: string | null;
 	/** Height description (e.g., "short", "average", "tall") */
 	height?: string | null;
+	/** Sex (e.g., "male", "female") */
+	sex?: string | null;
 	/** Apparent age range (e.g., "young adult", "mature") */
 	age?: string | null;
 	/** Posture type */
 	posture?: string | null;
-	/** Build proportion */
-	buildProportion?: string | null;
+	/** Proportions */
+	proportions?: string | null;
 	/** Skin texture */
 	skinTexture?: string | null;
 	/** Distinctive marks (freckles, moles, etc.) */
@@ -162,8 +164,6 @@ export interface PhysicalCriteriaFace {
 	cheekbones?: string | null;
 	/** Teeth appearance */
 	teeth?: string | null;
-	/** Smile type */
-	smile?: string | null;
 }
 
 /** Upper body characteristics for persona generation */

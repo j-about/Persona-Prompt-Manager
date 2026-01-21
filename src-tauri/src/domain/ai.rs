@@ -227,12 +227,14 @@ pub struct PhysicalCriteriaGeneral {
     pub body_type: Option<String>,
     /// Height description (e.g., "short", "average", "tall")
     pub height: Option<String>,
+    /// Sex (e.g., "male", "female")
+    pub sex: Option<String>,
     /// Apparent age range (e.g., "young adult", "mature")
     pub age: Option<String>,
     /// Posture type (e.g., "upright", "relaxed", "slouched")
     pub posture: Option<String>,
-    /// Build proportion (e.g., "long-limbed", "proportionate", "compact")
-    pub build_proportion: Option<String>,
+    /// Proportions (e.g., "long-limbed", "proportionate", "compact")
+    pub proportions: Option<String>,
     /// Skin texture (e.g., "smooth", "poreless", "dewy")
     pub skin_texture: Option<String>,
     /// Distinctive marks (e.g., "freckles", "moles", "dimples")
@@ -283,8 +285,6 @@ pub struct PhysicalCriteriaFace {
     pub cheekbones: Option<String>,
     /// Teeth appearance (e.g., "straight", "gap-toothed", "perfect")
     pub teeth: Option<String>,
-    /// Smile type (e.g., "wide", "subtle", "warm")
-    pub smile: Option<String>,
 }
 
 /// Upper body characteristics for persona generation.

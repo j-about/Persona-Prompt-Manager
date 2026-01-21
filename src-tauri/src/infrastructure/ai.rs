@@ -109,241 +109,97 @@ fn build_persona_generation_user_prompt(request: &AiPersonaGenerationRequest) ->
         ));
     }
 
-    // Physical criteria by granularity - always include all fields with "No preference" as default
+    // Physical criteria by granularity - JSON format with subgroups matching the UI form
     // This allows AI to know which characteristics it has freedom to define
-    let criteria = &request.physical_criteria;
     let no_pref = "No preference";
-    let mut physical_specs = Vec::new();
+    let criteria = &request.physical_criteria;
 
-    // General
-    {
-        let general = criteria.general.as_ref();
-        let items = vec![
-            format!(
-                "Age: {}",
-                general.and_then(|g| g.age.as_deref()).unwrap_or(no_pref)
-            ),
-            format!(
-                "Skin tone: {}",
-                general
-                    .and_then(|g| g.skin_tone.as_deref())
-                    .unwrap_or(no_pref)
-            ),
-            format!(
-                "Complexion: {}",
-                general
-                    .and_then(|g| g.complexion.as_deref())
-                    .unwrap_or(no_pref)
-            ),
-            format!(
-                "Skin texture: {}",
-                general
-                    .and_then(|g| g.skin_texture.as_deref())
-                    .unwrap_or(no_pref)
-            ),
-            format!(
-                "Distinctive marks: {}",
-                general
-                    .and_then(|g| g.distinctive_marks.as_deref())
-                    .unwrap_or(no_pref)
-            ),
-            format!(
-                "Body type: {}",
-                general
-                    .and_then(|g| g.body_type.as_deref())
-                    .unwrap_or(no_pref)
-            ),
-            format!(
-                "Height: {}",
-                general.and_then(|g| g.height.as_deref()).unwrap_or(no_pref)
-            ),
-            format!(
-                "Build proportion: {}",
-                general
-                    .and_then(|g| g.build_proportion.as_deref())
-                    .unwrap_or(no_pref)
-            ),
-            format!(
-                "Posture: {}",
-                general
-                    .and_then(|g| g.posture.as_deref())
-                    .unwrap_or(no_pref)
-            ),
-        ];
-        physical_specs.push(format!("General: {}", items.join(", ")));
-    }
+    let general = criteria.general.as_ref();
+    let hair = criteria.hair.as_ref();
+    let face = criteria.face.as_ref();
+    let upper = criteria.upper_body.as_ref();
+    let mid = criteria.midsection.as_ref();
+    let lower = criteria.lower_body.as_ref();
 
-    // Hair
-    {
-        let hair = criteria.hair.as_ref();
-        let items = [
-            format!(
-                "Color: {}",
-                hair.and_then(|h| h.color.as_deref()).unwrap_or(no_pref)
-            ),
-            format!(
-                "Shade: {}",
-                hair.and_then(|h| h.color_shade.as_deref())
-                    .unwrap_or(no_pref)
-            ),
-            format!(
-                "Length: {}",
-                hair.and_then(|h| h.length.as_deref()).unwrap_or(no_pref)
-            ),
-            format!(
-                "Style: {}",
-                hair.and_then(|h| h.style.as_deref()).unwrap_or(no_pref)
-            ),
-            format!(
-                "Texture: {}",
-                hair.and_then(|h| h.texture.as_deref()).unwrap_or(no_pref)
-            ),
-        ];
-        physical_specs.push(format!("Hair: {}", items.join(", ")));
-    }
-
-    // Face
-    {
-        let face = criteria.face.as_ref();
-        let items = vec![
-            format!(
-                "Forehead: {}",
-                face.and_then(|f| f.forehead.as_deref()).unwrap_or(no_pref)
-            ),
-            format!(
-                "Face shape: {}",
-                face.and_then(|f| f.face_shape.as_deref())
-                    .unwrap_or(no_pref)
-            ),
-            format!(
-                "Cheekbones: {}",
-                face.and_then(|f| f.cheekbones.as_deref())
-                    .unwrap_or(no_pref)
-            ),
-            format!(
-                "Jawline: {}",
-                face.and_then(|f| f.jawline.as_deref()).unwrap_or(no_pref)
-            ),
-            format!(
-                "Chin shape: {}",
-                face.and_then(|f| f.chin_shape.as_deref())
-                    .unwrap_or(no_pref)
-            ),
-            format!(
-                "Eyebrow shape: {}",
-                face.and_then(|f| f.eyebrow_shape.as_deref())
-                    .unwrap_or(no_pref)
-            ),
-            format!(
-                "Eye color: {}",
-                face.and_then(|f| f.eye_color.as_deref()).unwrap_or(no_pref)
-            ),
-            format!(
-                "Eye shape: {}",
-                face.and_then(|f| f.eye_shape.as_deref()).unwrap_or(no_pref)
-            ),
-            format!(
-                "Nose shape: {}",
-                face.and_then(|f| f.nose_shape.as_deref())
-                    .unwrap_or(no_pref)
-            ),
-            format!(
-                "Lip shape: {}",
-                face.and_then(|f| f.lip_shape.as_deref()).unwrap_or(no_pref)
-            ),
-            format!(
-                "Teeth: {}",
-                face.and_then(|f| f.teeth.as_deref()).unwrap_or(no_pref)
-            ),
-            format!(
-                "Smile: {}",
-                face.and_then(|f| f.smile.as_deref()).unwrap_or(no_pref)
-            ),
-        ];
-        physical_specs.push(format!("Face: {}", items.join(", ")));
-    }
-
-    // Upper body
-    {
-        let upper = criteria.upper_body.as_ref();
-        let items = [
-            format!(
-                "Neck: {}",
-                upper.and_then(|u| u.neck.as_deref()).unwrap_or(no_pref)
-            ),
-            format!(
-                "Build: {}",
-                upper.and_then(|u| u.build.as_deref()).unwrap_or(no_pref)
-            ),
-            format!(
-                "Shoulders: {}",
-                upper
-                    .and_then(|u| u.shoulders.as_deref())
-                    .unwrap_or(no_pref)
-            ),
-            format!(
-                "Back: {}",
-                upper.and_then(|u| u.back.as_deref()).unwrap_or(no_pref)
-            ),
-            format!(
-                "Chest: {}",
-                upper.and_then(|u| u.chest.as_deref()).unwrap_or(no_pref)
-            ),
-            format!(
-                "Arms: {}",
-                upper.and_then(|u| u.arms.as_deref()).unwrap_or(no_pref)
-            ),
-            format!(
-                "Hands: {}",
-                upper.and_then(|u| u.hands.as_deref()).unwrap_or(no_pref)
-            ),
-            format!(
-                "Nails: {}",
-                upper.and_then(|u| u.nails.as_deref()).unwrap_or(no_pref)
-            ),
-        ];
-        physical_specs.push(format!("Upper body: {}", items.join(", ")));
-    }
-
-    // Midsection
-    {
-        let mid = criteria.midsection.as_ref();
-        let items = [
-            format!(
-                "Waist: {}",
-                mid.and_then(|m| m.waist.as_deref()).unwrap_or(no_pref)
-            ),
-            format!(
-                "Hips: {}",
-                mid.and_then(|m| m.hips.as_deref()).unwrap_or(no_pref)
-            ),
-        ];
-        physical_specs.push(format!("Midsection: {}", items.join(", ")));
-    }
-
-    // Lower body
-    {
-        let lower = criteria.lower_body.as_ref();
-        let items = [
-            format!(
-                "Legs: {}",
-                lower.and_then(|l| l.legs.as_deref()).unwrap_or(no_pref)
-            ),
-            format!(
-                "Build: {}",
-                lower.and_then(|l| l.build.as_deref()).unwrap_or(no_pref)
-            ),
-            format!(
-                "Feet: {}",
-                lower.and_then(|l| l.feet.as_deref()).unwrap_or(no_pref)
-            ),
-        ];
-        physical_specs.push(format!("Lower body: {}", items.join(", ")));
-    }
+    let physical_json = json!({
+        "general": {
+            "sex": general.and_then(|g| g.sex.as_deref()).unwrap_or(no_pref),
+            "age": general.and_then(|g| g.age.as_deref()).unwrap_or(no_pref),
+            "skin": {
+                "tone": general.and_then(|g| g.skin_tone.as_deref()).unwrap_or(no_pref),
+                "complexion": general.and_then(|g| g.complexion.as_deref()).unwrap_or(no_pref),
+                "texture": general.and_then(|g| g.skin_texture.as_deref()).unwrap_or(no_pref),
+                "distinctiveMarks": general.and_then(|g| g.distinctive_marks.as_deref()).unwrap_or(no_pref)
+            },
+            "body": {
+                "type": general.and_then(|g| g.body_type.as_deref()).unwrap_or(no_pref),
+                "height": general.and_then(|g| g.height.as_deref()).unwrap_or(no_pref),
+                "proportions": general.and_then(|g| g.proportions.as_deref()).unwrap_or(no_pref),
+                "posture": general.and_then(|g| g.posture.as_deref()).unwrap_or(no_pref)
+            }
+        },
+        "hair": {
+            "color": {
+                "main": hair.and_then(|h| h.color.as_deref()).unwrap_or(no_pref),
+                "shade": hair.and_then(|h| h.color_shade.as_deref()).unwrap_or(no_pref)
+            },
+            "attributes": {
+                "length": hair.and_then(|h| h.length.as_deref()).unwrap_or(no_pref),
+                "style": hair.and_then(|h| h.style.as_deref()).unwrap_or(no_pref),
+                "texture": hair.and_then(|h| h.texture.as_deref()).unwrap_or(no_pref)
+            }
+        },
+        "face": {
+            "structure": {
+                "forehead": face.and_then(|f| f.forehead.as_deref()).unwrap_or(no_pref),
+                "shape": face.and_then(|f| f.face_shape.as_deref()).unwrap_or(no_pref),
+                "cheekbones": face.and_then(|f| f.cheekbones.as_deref()).unwrap_or(no_pref),
+                "jawline": face.and_then(|f| f.jawline.as_deref()).unwrap_or(no_pref),
+                "chin": face.and_then(|f| f.chin_shape.as_deref()).unwrap_or(no_pref)
+            },
+            "eyebrows": {
+                "shape": face.and_then(|f| f.eyebrow_shape.as_deref()).unwrap_or(no_pref)
+            },
+            "eyes": {
+                "color": face.and_then(|f| f.eye_color.as_deref()).unwrap_or(no_pref),
+                "shape": face.and_then(|f| f.eye_shape.as_deref()).unwrap_or(no_pref)
+            },
+            "nose": {
+                "shape": face.and_then(|f| f.nose_shape.as_deref()).unwrap_or(no_pref)
+            },
+            "mouth": {
+                "lipShape": face.and_then(|f| f.lip_shape.as_deref()).unwrap_or(no_pref),
+                "teeth": face.and_then(|f| f.teeth.as_deref()).unwrap_or(no_pref)
+            }
+        },
+        "upperBody": {
+            "neck": upper.and_then(|u| u.neck.as_deref()).unwrap_or(no_pref),
+            "torso": {
+                "build": upper.and_then(|u| u.build.as_deref()).unwrap_or(no_pref),
+                "shoulders": upper.and_then(|u| u.shoulders.as_deref()).unwrap_or(no_pref),
+                "back": upper.and_then(|u| u.back.as_deref()).unwrap_or(no_pref),
+                "chest": upper.and_then(|u| u.chest.as_deref()).unwrap_or(no_pref)
+            },
+            "upperLimbs": {
+                "arms": upper.and_then(|u| u.arms.as_deref()).unwrap_or(no_pref),
+                "hands": upper.and_then(|u| u.hands.as_deref()).unwrap_or(no_pref),
+                "nails": upper.and_then(|u| u.nails.as_deref()).unwrap_or(no_pref)
+            }
+        },
+        "midsection": {
+            "waist": mid.and_then(|m| m.waist.as_deref()).unwrap_or(no_pref),
+            "hips": mid.and_then(|m| m.hips.as_deref()).unwrap_or(no_pref)
+        },
+        "lowerBody": {
+            "legs": lower.and_then(|l| l.legs.as_deref()).unwrap_or(no_pref),
+            "build": lower.and_then(|l| l.build.as_deref()).unwrap_or(no_pref),
+            "feet": lower.and_then(|l| l.feet.as_deref()).unwrap_or(no_pref)
+        }
+    });
 
     sections.push(format!(
-        "PHYSICAL SPECIFICATIONS:\n{}",
-        physical_specs.join("\n")
+        "PHYSICAL SPECIFICATIONS:\n```json\n{}\n```",
+        serde_json::to_string_pretty(&physical_json).unwrap()
     ));
 
     // Custom instructions

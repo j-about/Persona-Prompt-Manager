@@ -18,7 +18,7 @@
 //! 1. **Style**: Overall artistic style (e.g., "masterpiece", "anime")
 //! 2. **General**: General physical traits (e.g., "pale skin", "tan complexion")
 //! 3. **Hair**: Hair-related tokens (e.g., "red hair", "long hair")
-//! 4. **Face**: Facial features (e.g., "blue eyes", "smile")
+//! 4. **Face**: Facial features (e.g., "blue eyes", "freckles")
 //! 5. **Upper Body**: Torso, chest, arms, shoulders (e.g., "muscular arms", "broad shoulders")
 //! 6. **Midsection**: Waist, hips, midriff (e.g., "narrow waist", "wide hips")
 //! 7. **Lower Body**: Legs, thighs, feet (e.g., "long legs", "slender ankles")

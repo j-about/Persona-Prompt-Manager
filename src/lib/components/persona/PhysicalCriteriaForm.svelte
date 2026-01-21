@@ -93,6 +93,11 @@
 					label: null,
 					fields: [
 						{
+							id: 'sex',
+							label: 'Sex',
+							options: ['No preference', 'Male', 'Female']
+						},
+						{
 							id: 'age',
 							label: 'Age',
 							options: [
@@ -198,8 +203,8 @@
 							]
 						},
 						{
-							id: 'buildProportion',
-							label: 'Build Proportion',
+							id: 'proportions',
+							label: 'Proportions',
 							options: ['No preference', 'Long-limbed', 'Proportionate', 'Compact', 'Lanky']
 						},
 						{
@@ -432,19 +437,6 @@
 								'Prominent canines',
 								'Perfect'
 							]
-						},
-						{
-							id: 'smile',
-							label: 'Smile',
-							options: [
-								'No preference',
-								'Wide',
-								'Subtle',
-								'Warm',
-								'Reserved',
-								'Mischievous',
-								'Bright'
-							]
 						}
 					]
 				}
@@ -454,7 +446,7 @@
 			label: 'Upper Body',
 			subgroups: [
 				{
-					label: 'Neck',
+					label: null,
 					fields: [
 						{
 							id: 'neck',
@@ -469,7 +461,7 @@
 						{
 							id: 'build',
 							label: 'Build',
-							options: ['No preference', 'Slim', 'Toned', 'Muscular', 'Broad', 'Petite', 'Average']
+							options: ['No preference', 'Slim', 'Toned', 'Muscular', 'Broad', 'Average']
 						},
 						{
 							id: 'shoulders',
@@ -489,18 +481,13 @@
 					]
 				},
 				{
-					label: 'Arms',
+					label: 'Upper limbs',
 					fields: [
 						{
 							id: 'arms',
 							label: 'Arms',
 							options: ['No preference', 'Slender', 'Toned', 'Muscular', 'Average']
-						}
-					]
-				},
-				{
-					label: 'Hands',
-					fields: [
+						},
 						{
 							id: 'hands',
 							label: 'Hands',
@@ -547,7 +534,7 @@
 			label: 'Lower Body',
 			subgroups: [
 				{
-					label: 'Legs',
+					label: null,
 					fields: [
 						{
 							id: 'legs',
@@ -565,13 +552,8 @@
 						{
 							id: 'build',
 							label: 'Build',
-							options: ['No preference', 'Slim', 'Toned', 'Athletic', 'Curvy', 'Average']
-						}
-					]
-				},
-				{
-					label: 'Feet',
-					fields: [
+							options: ['No preference', 'Slim', 'Toned', 'Athletic', 'Average']
+						},
 						{
 							id: 'feet',
 							label: 'Feet',
