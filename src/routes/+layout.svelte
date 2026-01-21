@@ -6,6 +6,7 @@
 	import { Toast, DonationPopup } from '$lib/components/ui';
 	import { checkCredentialStore } from '$lib/services/settings';
 	import { configStore, donationStore } from '$lib/stores';
+	import { getVersion } from '@tauri-apps/api/app';
 	import { exit } from '@tauri-apps/plugin-process';
 	import { type as osType } from '@tauri-apps/plugin-os';
 	import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -18,6 +19,7 @@
 
 	let credentialStoreUnavailable = $state(false);
 	let checkingCredentialStore = $state(true);
+	let appVersion = $state('');
 	let unlistenCloseRequest: (() => void) | null = null;
 
 	const navItems = [
@@ -37,6 +39,9 @@
 
 			// Initialize configuration from Rust backend (single source of truth)
 			await configStore.initialize();
+
+			// Get app version from Tauri (reads from tauri.conf.json)
+			appVersion = await getVersion();
 
 			// Register window close request handler
 			unlistenCloseRequest = await getCurrentWindow().onCloseRequested(async (event) => {
@@ -130,7 +135,7 @@
 				>
 					About
 				</a>
-				<span>v0.1.1</span>
+				<span>v{appVersion}</span>
 			</div>
 		</nav>
 		<main class="ml-64 flex-1 bg-base-200 p-8">

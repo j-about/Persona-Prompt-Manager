@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	// Home page - dashboard view
 </script>
 
 <div>

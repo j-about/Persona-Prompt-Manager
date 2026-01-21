@@ -1,6 +1,13 @@
 <script lang="ts">
-	const APP_VERSION = '0.1.1';
+	import { onMount } from 'svelte';
+	import { getVersion } from '@tauri-apps/api/app';
+
 	const CURRENT_YEAR = new Date().getFullYear();
+	let appVersion = $state('');
+
+	onMount(async () => {
+		appVersion = await getVersion();
+	});
 </script>
 
 <div>
@@ -10,7 +17,7 @@
 		<img src="/icon.png" alt="" class="mb-6 h-32 w-32" />
 
 		<h2 class="text-2xl font-bold text-base-content">Persona Prompt Manager</h2>
-		<p class="mt-1 text-base-content/60">Version {APP_VERSION}</p>
+		<p class="mt-1 text-base-content/60">Version {appVersion}</p>
 
 		<p class="mt-6 max-w-md text-base-content/70">
 			A cross-platform desktop application built in Rust that enables digital artists and AI image
