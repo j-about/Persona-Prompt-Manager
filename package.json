@@ -1,6 +1,6 @@
 {
 	"name": "persona-prompt-manager",
-	"version": "0.1.2",
+	"version": "0.1.3",
 	"description": "A cross-platform desktop application built in Rust that enables digital artists and AI image generation practitioners to create, manage, and compose prompts for fictional character generation with consistency and precision.",
 	"private": true,
 	"type": "module",

@@ -1,7 +1,7 @@
 # Persona Prompt Manager
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Version](https://img.shields.io/badge/version-0.1.2-green.svg)
+![Version](https://img.shields.io/badge/version-0.1.3-green.svg)
 ![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
 ![Node](https://img.shields.io/badge/node-%3E%3D24.0.0-brightgreen.svg)
 ![Rust](https://img.shields.io/badge/rust-stable-orange.svg)
