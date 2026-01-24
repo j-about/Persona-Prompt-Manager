@@ -38,7 +38,7 @@
 
 - **Prompt Composition** — Assemble complete prompts by selectively combining tokens from different granularity levels, with support for ad-hoc additions and weight modifiers.
 
-- **Multi-Model Tokenization** — Accurate CLIP and T5 token counting for popular image generation models including Stable Diffusion XL, FLUX, AuraFlow, and DeepFloyd IF.
+- **Multi-Model Tokenization** — Accurate CLIP and T5 token counting for popular image generation models including Stable Diffusion XL, PixArt, Hunyuan, and DeepFloyd IF.
 
 - **AI-Powered Generation** — Generate contextual token suggestions using multiple AI providers: OpenAI, Anthropic, Google, xAI, or Ollama (local).
 

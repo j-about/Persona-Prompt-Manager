@@ -41,28 +41,6 @@ fn get_known_mappings() -> HashMap<&'static str, TokenizerConfig> {
     let mut mappings = HashMap::new();
 
     // =========================================================================
-    // A - AuraFlow (fal.ai)
-    // =========================================================================
-
-    mappings.insert(
-        "fal/AuraFlow",
-        TokenizerConfig {
-            tokenizer_id: "google/t5-v1_1-xxl".to_string(),
-            max_tokens: 256,
-            usable_tokens: 250,
-        },
-    );
-
-    mappings.insert(
-        "fal/AuraFlow-v0.2",
-        TokenizerConfig {
-            tokenizer_id: "google/t5-v1_1-xxl".to_string(),
-            max_tokens: 256,
-            usable_tokens: 250,
-        },
-    );
-
-    // =========================================================================
     // D - DeepFloyd IF (Stability AI)
     // =========================================================================
 
@@ -76,48 +54,8 @@ fn get_known_mappings() -> HashMap<&'static str, TokenizerConfig> {
     );
 
     // =========================================================================
-    // F - FLUX (Black Forest Labs)
+    // H - Hunyuan (Tencent)
     // =========================================================================
-
-    mappings.insert(
-        "black-forest-labs/FLUX.1-dev",
-        TokenizerConfig {
-            tokenizer_id: "google/t5-v1_1-xxl".to_string(),
-            max_tokens: 256,
-            usable_tokens: 250,
-        },
-    );
-
-    mappings.insert(
-        "black-forest-labs/FLUX.1-schnell",
-        TokenizerConfig {
-            tokenizer_id: "google/t5-v1_1-xxl".to_string(),
-            max_tokens: 256,
-            usable_tokens: 250,
-        },
-    );
-
-    mappings.insert(
-        "black-forest-labs/FLUX.2-dev",
-        TokenizerConfig {
-            tokenizer_id: "google/t5-v1_1-xxl".to_string(),
-            max_tokens: 256,
-            usable_tokens: 250,
-        },
-    );
-
-    // =========================================================================
-    // H - HiDream, Hunyuan (Tencent)
-    // =========================================================================
-
-    mappings.insert(
-        "HiDream-ai/HiDream-I1-Full",
-        TokenizerConfig {
-            tokenizer_id: "google/t5-v1_1-xxl".to_string(),
-            max_tokens: 256,
-            usable_tokens: 250,
-        },
-    );
 
     mappings.insert(
         "Tencent-Hunyuan/HunyuanDiT-v1.2",
@@ -239,26 +177,6 @@ fn get_known_mappings() -> HashMap<&'static str, TokenizerConfig> {
         },
     );
 
-    // Stable Diffusion 3 Medium (CLIP + T5 hybrid)
-    mappings.insert(
-        "stabilityai/stable-diffusion-3-medium",
-        TokenizerConfig {
-            tokenizer_id: "openai/clip-vit-large-patch14".to_string(),
-            max_tokens: 77,
-            usable_tokens: 75,
-        },
-    );
-
-    // Stable Diffusion 3.5 Large (CLIP + T5 hybrid)
-    mappings.insert(
-        "stabilityai/stable-diffusion-3.5-large",
-        TokenizerConfig {
-            tokenizer_id: "openai/clip-vit-large-patch14".to_string(),
-            max_tokens: 77,
-            usable_tokens: 75,
-        },
-    );
-
     // Stable Diffusion XL
     mappings.insert(
         "stabilityai/stable-diffusion-xl-base-1.0",
@@ -354,15 +272,6 @@ pub fn get_config_for_model(model_id: &str) -> TokenizerConfig {
     // T5-based models (256 tokens)
     // =========================================================================
 
-    // FLUX models
-    if model_lower.contains("flux") {
-        return TokenizerConfig {
-            tokenizer_id: "google/t5-v1_1-xxl".to_string(),
-            max_tokens: 256,
-            usable_tokens: 250,
-        };
-    }
-
     // PixArt models
     if model_lower.contains("pixart") {
         return TokenizerConfig {
@@ -390,24 +299,6 @@ pub fn get_config_for_model(model_id: &str) -> TokenizerConfig {
         };
     }
 
-    // AuraFlow
-    if model_lower.contains("auraflow") {
-        return TokenizerConfig {
-            tokenizer_id: "google/t5-v1_1-xxl".to_string(),
-            max_tokens: 256,
-            usable_tokens: 250,
-        };
-    }
-
-    // HiDream
-    if model_lower.contains("hidream") {
-        return TokenizerConfig {
-            tokenizer_id: "google/t5-v1_1-xxl".to_string(),
-            max_tokens: 256,
-            usable_tokens: 250,
-        };
-    }
-
     // DeepFloyd IF (T5 encoder but 77 token limit)
     if model_lower.contains("deepfloyd") || model_lower.contains("if-i-") {
         return TokenizerConfig {
@@ -423,15 +314,6 @@ pub fn get_config_for_model(model_id: &str) -> TokenizerConfig {
 
     // SDXL
     if model_lower.contains("sdxl") || model_lower.contains("stable-diffusion-xl") {
-        return TokenizerConfig {
-            tokenizer_id: "openai/clip-vit-large-patch14".to_string(),
-            max_tokens: 77,
-            usable_tokens: 75,
-        };
-    }
-
-    // Stable Diffusion 3.x (CLIP primary, though hybrid with T5)
-    if model_lower.contains("stable-diffusion-3") {
         return TokenizerConfig {
             tokenizer_id: "openai/clip-vit-large-patch14".to_string(),
             max_tokens: 77,
@@ -623,7 +505,7 @@ pub fn get_known_models() -> Vec<TokenizerInfo> {
 pub struct ImageModelPromptContext {
     /// Human-readable display name (e.g., "Stable Diffusion XL")
     pub display_name: String,
-    /// Model family identifier (sdxl, flux, sd2, sd15, kandinsky)
+    /// Model family identifier (sdxl, pixart, sd2, sd15, kandinsky)
     pub family: String,
 }
 
@@ -639,21 +521,6 @@ pub fn get_prompt_context_for_model(model_id: Option<&str>) -> ImageModelPromptC
     // =========================================================================
     // T5-based models (natural language prompts)
     // =========================================================================
-
-    // FLUX models
-    if model_lower.contains("flux") {
-        let display_name = if model_lower.contains("schnell") {
-            "FLUX.1 Schnell"
-        } else if model_lower.contains("flux.2") || model_lower.contains("flux2") {
-            "FLUX.2 Dev"
-        } else {
-            "FLUX.1 Dev"
-        };
-        return ImageModelPromptContext {
-            display_name: display_name.to_string(),
-            family: "flux".to_string(),
-        };
-    }
 
     // PixArt models
     if model_lower.contains("pixart") {
@@ -689,22 +556,6 @@ pub fn get_prompt_context_for_model(model_id: Option<&str>) -> ImageModelPromptC
         };
     }
 
-    // AuraFlow
-    if model_lower.contains("auraflow") {
-        return ImageModelPromptContext {
-            display_name: "AuraFlow".to_string(),
-            family: "auraflow".to_string(),
-        };
-    }
-
-    // HiDream
-    if model_lower.contains("hidream") {
-        return ImageModelPromptContext {
-            display_name: "HiDream-I1".to_string(),
-            family: "hidream".to_string(),
-        };
-    }
-
     // DeepFloyd IF
     if model_lower.contains("deepfloyd") || model_lower.contains("if-i-") {
         return ImageModelPromptContext {
@@ -722,19 +573,6 @@ pub fn get_prompt_context_for_model(model_id: Option<&str>) -> ImageModelPromptC
         return ImageModelPromptContext {
             display_name: "Stable Diffusion XL".to_string(),
             family: "sdxl".to_string(),
-        };
-    }
-
-    // Stable Diffusion 3.x (hybrid CLIP + T5)
-    if model_lower.contains("stable-diffusion-3") {
-        let display_name = if model_lower.contains("3.5") {
-            "Stable Diffusion 3.5"
-        } else {
-            "Stable Diffusion 3"
-        };
-        return ImageModelPromptContext {
-            display_name: display_name.to_string(),
-            family: "sd3".to_string(),
         };
     }
 

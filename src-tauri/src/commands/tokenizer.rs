@@ -7,7 +7,7 @@
 //!
 //! Different image generation models have different tokenizers and limits:
 //! - **SDXL/SD 1.5**: CLIP tokenizer, 77 tokens max (75 usable)
-//! - **FLUX/PixArt**: T5 tokenizer, 256 tokens max (250 usable)
+//! - **PixArt/Hunyuan**: T5 tokenizer, 256 tokens max (250 usable)
 //!
 //! Exceeding these limits causes prompt truncation, which can silently drop
 //! important tokens from the end of prompts.
@@ -16,7 +16,7 @@
 //!
 //! The system automatically selects the appropriate tokenizer based on the model ID:
 //! - Exact match against known model configurations
-//! - Family-based fallback (e.g., any "flux" model uses T5)
+//! - Family-based fallback (e.g., any "pixart" model uses T5)
 //! - Default to CLIP tokenizer for unknown models
 
 use crate::infrastructure::tokenizer::{self, TokenCount, TokenizerInfo};

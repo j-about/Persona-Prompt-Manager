@@ -45,7 +45,7 @@ pub struct Persona {
     pub tags: Vec<String>,
     /// AI provider ID for token generation (e.g., "openai", "anthropic")
     pub ai_provider_id: Option<String>,
-    /// AI model ID for token generation (e.g., "gpt-4o-mini")
+    /// AI model ID for token generation (e.g., "gpt-5.2-pro")
     pub ai_model_id: Option<String>,
     /// Custom instructions passed to AI during token generation
     pub ai_instructions: Option<String>,
@@ -57,7 +57,7 @@ pub struct Persona {
 
 /// Image generation parameters associated with a persona.
 ///
-/// These settings correspond to typical Stable Diffusion / SDXL / FLUX parameters
+/// These settings correspond to typical Stable Diffusion / SDXL parameters
 /// and are stored alongside the persona for reproducible generations.
 ///
 /// # Default Values

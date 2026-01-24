@@ -64,19 +64,27 @@ Maximum token budget: {total_tokens} tokens.
 
 TOKEN GENERATION RULES:
 1. Generate visually descriptive tokens suitable for AI image generation
-2. Each token should be specific and concrete (e.g., "auburn wavy hair" not just "hair")
+2. Each token should be specific and concrete
 3. Tokens should be POSITIVE descriptions (what to include, not what to exclude)
 4. DO NOT generate clothing, accessories, or outfit tokens unless explicitly mentioned
 5. Focus on physical characteristics and style only
 
+WEIGHT CALIBRATION GUIDE:
+Weights control emphasis in the final image prompt. Use this scale:
+- 0.7-0.9 (De-emphasized): Subtle features that should be present but not dominant
+- 1.0 (Standard): Normal physical characteristics, expected features
+- 1.1-1.2 (Emphasized): Defining character features, style-critical elements
+- 1.3-1.5 (Strongly Emphasized): Iconic must-have features (use sparingly, 1-2 max per persona)
+LIMITS: Never exceed 1.5 (causes artifacts). Never go below 0.6 (may not render).
+
 GRANULARITY ORGANIZATION:
-- style: Style tokens (e.g., "masterpiece", "photorealistic", "anime style", "oil painting", "cinematic")
-- general: Overall physical traits (skin tone, body type, age, ethnicity features)
-- hair: Hair color, length, style, texture
-- face: Eyes, face shape, facial features
-- upper_body: Shoulders, arms, chest, back (physical build only)
-- midsection: Waist, hips, midriff (physical traits only)
-- lower_body: Legs, thighs (physical traits only)
+- style: Style tokens
+- general: Overall physical traits
+- hair
+- face
+- upper_body
+- midsection
+- lower_body
 
 TAG INFERENCE:
 Derive 1-3 relevant tags from the style and description (e.g., "fantasy", "female", "anime").{existing_tags_section}
@@ -421,14 +429,46 @@ fn build_token_generation_system_prompt(
     tokenizer_config: &crate::infrastructure::tokenizer::TokenizerConfig,
 ) -> String {
     format!(
-        r"You are an expert prompt engineer for {model_name} ({family} family) image generation.
+        r#"You are an expert prompt engineer for {model_name} ({family} family) image generation, specializing in token enhancement and refinement.
 
-Generate visually descriptive tokens for AI image prompts. Token budget: {limit} tokens.
+Your task is to generate COMPLEMENTARY tokens that enhance an existing persona prompt for a specific context or action.
+Token budget: {limit} tokens per prompt.
 
-TOKEN REQUIREMENTS:
-- Visually specific and descriptive
-- Positive: desirable visual characteristics
-- Negative: elements to exclude",
+TOKEN GENERATION RULES:
+1. Generate visually descriptive tokens suitable for AI image generation
+2. Each token should be specific and concrete
+3. Positive tokens describe DESIRABLE visual characteristics to include
+4. Negative tokens describe UNDESIRABLE elements to exclude from the image
+5. Tokens must be semantically coherent with the persona's established character
+
+POSITIVE TOKEN GUIDELINES:
+- Enhance the scene, mood, composition, or specific visual elements
+- Add context-appropriate details (e.g., lighting, angle, expression, pose)
+- Complement existing tokens without redundancy
+- Use precise visual vocabulary appropriate for {model_name}
+
+NEGATIVE TOKEN GUIDELINES:
+- Exclude common quality issues
+- Prevent unwanted visual elements that conflict with the desired scene
+- Remove style-inappropriate elements
+- Focus on impactful exclusions, not exhaustive lists
+
+WEIGHT CALIBRATION GUIDE:
+Weights control emphasis in the final image prompt. Use this scale:
+- 0.7-0.9 (De-emphasized): Subtle features that should be present but not dominant
+- 1.0 (Standard): Normal visual characteristics, expected features
+- 1.1-1.2 (Emphasized): Key scene elements, critical composition features
+- 1.3-1.5 (Strongly Emphasized): Must-have features for this specific context (use sparingly)
+LIMITS: Never exceed 1.5 (causes artifacts). Never go below 0.6 (may not render).
+
+ADHOC TOKEN CONTEXT:
+You are generating ad-hoc tokens for scene-specific enhancement: context, action, mood, lighting, composition, and quality modifiers.
+These tokens are NOT body-region specific - they enhance the overall image generation for a particular scene or context.
+
+SEMANTIC COHERENCE:
+- Maintain consistency with the persona's established visual identity
+- New tokens should feel like natural extensions, not contradictions
+- Consider how tokens will interact when combined in the final prompt"#,
         model_name = prompt_context.display_name,
         family = prompt_context.family,
         limit = tokenizer_config.usable_tokens,
@@ -441,21 +481,24 @@ fn build_token_generation_user_prompt(request: &TokenGenerationRequest) -> Strin
     let tokenizer_config = get_config_for_model(model_id.unwrap_or(DEFAULT_IMAGE_MODEL_ID));
     let mut sections = Vec::new();
 
-    // Section 1: Persona Information
+    // Section 1: Persona Identity
     let mut persona_section = format!("PERSONA: {}", request.persona_name);
     if let Some(desc) = &request.persona_description {
         if !desc.is_empty() {
-            persona_section.push_str(&format!("\nDescription:\n```\n{desc}\n```"));
+            persona_section.push_str(&format!(
+                "\nCharacter Description:\n```\n{desc}\n```"
+            ));
         }
     }
     sections.push(persona_section);
 
     // Section 2: Current Prompt State
+    let max_tokens = request
+        .max_usable_tokens
+        .unwrap_or(tokenizer_config.usable_tokens);
+
     if request.current_positive_prompt.is_some() || request.current_negative_prompt.is_some() {
-        let mut state_section = String::from("CURRENT PROMPTS:");
-        let max_tokens = request
-            .max_usable_tokens
-            .unwrap_or(tokenizer_config.usable_tokens);
+        let mut state_section = String::from("CURRENT PROMPT STATE:");
 
         if let Some(pos) = &request.current_positive_prompt {
             if !pos.is_empty() {
@@ -463,7 +506,7 @@ fn build_token_generation_user_prompt(request: &TokenGenerationRequest) -> Strin
                 let pos_count = request.positive_token_count.unwrap_or(0);
                 let pos_remaining = max_tokens.saturating_sub(pos_count);
                 state_section.push_str(&format!(
-                    "\nPositive ({pos_words} words; {pos_count}/{max_tokens} tokens, {pos_remaining} remaining): {pos}"
+                    "\n\nPositive Prompt ({pos_words} words; {pos_count}/{max_tokens} tokens, {pos_remaining} remaining):\n```\n{pos}\n```"
                 ));
             }
         }
@@ -474,7 +517,7 @@ fn build_token_generation_user_prompt(request: &TokenGenerationRequest) -> Strin
                 let neg_count = request.negative_token_count.unwrap_or(0);
                 let neg_remaining = max_tokens.saturating_sub(neg_count);
                 state_section.push_str(&format!(
-                    "\nNegative ({neg_words} words; {neg_count}/{max_tokens} tokens, {neg_remaining} remaining): {neg}"
+                    "\n\nNegative Prompt ({neg_words} words; {neg_count}/{max_tokens} tokens, {neg_remaining} remaining):\n```\n{neg}\n```"
                 ));
             }
         }
@@ -484,86 +527,112 @@ fn build_token_generation_user_prompt(request: &TokenGenerationRequest) -> Strin
 
     // Section 3: Task Specification
     sections.push(
-        "TASK: Generate positive and negative tokens based on the context below.".to_string(),
+        "TASK:\nGenerate positive and negative tokens that complement the existing prompt.\nFocus on enhancing the scene/context described below while maintaining coherence with the persona's identity.".to_string(),
     );
 
-    // Section 4: Context/Action
+    // Section 4: Scene/Context Description
     if let Some(hints) = &request.style_hints {
         if !hints.is_empty() {
-            sections.push(format!("CONTEXT/ACTION:\n```\n{hints}\n```"));
+            sections.push(format!(
+                "SCENE/CONTEXT DESCRIPTION:\n```\n{hints}\n```\n\nGenerate tokens that bring this scene to life while preserving the persona's visual identity."
+            ));
         }
     }
 
     // Section 5: Custom AI Instructions
     if let Some(instructions) = &request.ai_instructions {
         if !instructions.is_empty() {
-            sections.push(format!("CUSTOM INSTRUCTIONS:\n{instructions}"));
+            sections.push(format!(
+                "CUSTOM INSTRUCTIONS (from persona configuration):\n```\n{instructions}\n```"
+            ));
         }
     }
 
-    // Section 6: Constraints
-    let max_tokens = request
-        .max_usable_tokens
-        .unwrap_or(tokenizer_config.usable_tokens);
+    // Section 6: Constraints (structured and comprehensive)
     let mut constraints = vec![
-        "Generate tokens based ONLY on the provided persona and context. Do not invent characteristics not mentioned.".to_string(),
-        "Do not repeat tokens already in the current prompts".to_string(),
+        "Generate tokens based ONLY on the provided persona and context description".to_string(),
+        "Each token must be visually descriptive and suitable for image generation".to_string(),
+        "Maintain semantic coherence with the persona's established character".to_string(),
+        "Avoid semantic redundancy with tokens already in the prompts".to_string(),
     ];
 
-    // Positive token constraints
+    // Token avoidance constraints
     if !request.existing_positive_tokens.is_empty() {
         constraints.push(format!(
-            "Avoid these existing positive tokens: {}",
+            "DO NOT duplicate or closely paraphrase these existing positive tokens:\n   {}",
             request.existing_positive_tokens.join(", ")
         ));
     }
 
-    // Negative token constraints
     if !request.existing_negative_tokens.is_empty() {
         constraints.push(format!(
-            "Avoid these existing negative tokens: {}",
+            "DO NOT duplicate or closely paraphrase these existing negative tokens:\n   {}",
             request.existing_negative_tokens.join(", ")
         ));
     }
 
-    // Token budget warnings
+    // Token budget constraints with tiered priority guidance
     let pos_count = request.positive_token_count.unwrap_or(0);
-    if pos_count > max_tokens / 2 {
+    let neg_count = request.negative_token_count.unwrap_or(0);
+
+    if pos_count > max_tokens * 2 / 3 {
         let remaining = max_tokens.saturating_sub(pos_count);
         constraints.push(format!(
-            "Positive prompt budget is limited ({remaining} remaining) - prioritize high-impact tokens"
+            "CRITICAL: Positive prompt is near limit ({remaining} tokens remaining) - generate only HIGH-IMPACT tokens"
+        ));
+    } else if pos_count > max_tokens / 2 {
+        let remaining = max_tokens.saturating_sub(pos_count);
+        constraints.push(format!(
+            "Positive prompt budget is limited ({remaining} remaining) - prioritize impactful tokens"
         ));
     }
 
-    let neg_count = request.negative_token_count.unwrap_or(0);
-    if neg_count > max_tokens / 2 {
+    if neg_count > max_tokens * 2 / 3 {
         let remaining = max_tokens.saturating_sub(neg_count);
         constraints.push(format!(
-            "Negative prompt budget is limited ({remaining} remaining) - prioritize high-impact tokens"
+            "CRITICAL: Negative prompt is near limit ({remaining} tokens remaining) - generate only HIGH-IMPACT exclusions"
+        ));
+    } else if neg_count > max_tokens / 2 {
+        let remaining = max_tokens.saturating_sub(neg_count);
+        constraints.push(format!(
+            "Negative prompt budget is limited ({remaining} remaining) - prioritize impactful exclusions"
         ));
     }
 
-    sections.push(format!("CONSTRAINTS:\n- {}", constraints.join("\n- ")));
+    sections.push(format!(
+        "CONSTRAINTS:\n{}",
+        constraints
+            .iter()
+            .enumerate()
+            .map(|(i, c)| format!("{}. {}", i + 1, c))
+            .collect::<Vec<_>>()
+            .join("\n")
+    ));
 
     // Section 7: Expected Output Format
     let output_section = r#"EXPECTED OUTPUT:
 Respond with a JSON object containing two arrays: "positive" and "negative".
 Each array contains token objects with:
-- "content" (string, required): The token text
-- "suggested_weight" (number, required): Weight value where 1.0 is normal emphasis
-- "rationale" (string, optional): Brief explanation for this token
+- "content" (string, required): The token text - should be specific and visually descriptive
+- "suggested_weight" (number, required): Weight value (0.7-1.5 range, 1.0 = normal emphasis)
+- "rationale" (string, optional): Brief explanation of how this token enhances the scene
 
 Example format:
 ```json
 {
   "positive": [
-    {"content": "detailed eyes", "suggested_weight": 1.2, "rationale": "Enhances facial detail"}
+    {"content": "dramatic rim lighting", "suggested_weight": 1.2, "rationale": "Creates depth and visual interest for portrait"},
+    {"content": "shallow depth of field", "suggested_weight": 1.1, "rationale": "Focuses attention on subject"},
+    {"content": "golden hour atmosphere", "suggested_weight": 1.0, "rationale": "Warm, flattering lighting for outdoor scene"}
   ],
   "negative": [
-    {"content": "blurry", "suggested_weight": 1.0, "rationale": "Prevents low quality output"}
+    {"content": "harsh shadows", "suggested_weight": 1.0, "rationale": "Prevents unflattering lighting"},
+    {"content": "cluttered background", "suggested_weight": 1.1, "rationale": "Maintains focus on subject"}
   ]
 }
-```"#;
+```
+
+Each token should add distinct value to the prompt."#;
 
     sections.push(output_section.to_string());
 

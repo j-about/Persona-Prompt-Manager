@@ -23,7 +23,7 @@
 //! - **Persona Management**: Create, edit, and organize character profiles with metadata
 //! - **Token Organization**: Hierarchical token management with granularity levels and polarity
 //! - **Prompt Composition**: Assemble prompts from tokens with weight modifiers
-//! - **Multi-Model Tokenization**: Accurate token counting for SDXL, FLUX, and other models
+//! - **Multi-Model Tokenization**: Accurate token counting for SDXL, `PixArt`, and other models
 //! - **AI Token Generation**: Generate tokens using `OpenAI`, Anthropic, Google, xAI, or Ollama
 //! - **Secure Credentials**: Platform-native secure storage for API keys
 
