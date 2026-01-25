@@ -226,8 +226,8 @@ export interface AiPersonaGenerationRequest {
 	name: string;
 	/** Desired visual style (e.g., "photorealistic", "anime", "oil painting", "cinematic") */
 	style: string;
-	/** Character description including age, background, biography */
-	characterDescription: string;
+	/** Character description including age, background, biography (optional) */
+	characterDescription?: string | null;
 	/** Physical criteria organized by body region (optional) */
 	physicalCriteria?: PhysicalCriteria;
 	/** Custom instructions for the AI (optional) */
@@ -236,6 +236,12 @@ export interface AiPersonaGenerationRequest {
 	imageModelId?: string;
 	/** Existing tags from other personas (for AI to prefer over new ones) */
 	existingTags?: string[];
+	/** Whether to improve the character description via AI (default: true) */
+	improveDescriptionViaAi?: boolean;
+	/** Whether to improve the AI instructions via AI (default: true) */
+	improveInstructionsViaAi?: boolean;
+	/** Whether to skip AI description generation when no description provided (default: false) */
+	skipAiDescription?: boolean;
 }
 
 /** Generated tokens organized by granularity level */
@@ -258,8 +264,10 @@ export interface GeneratedTokensByGranularity {
 
 /** Response from AI persona generation */
 export interface AiPersonaGenerationResponse {
-	/** Elaborated persona description */
+	/** Elaborated persona description (empty if using user's original) */
 	description: string;
+	/** Improved/refined AI instructions (null if using user's original) */
+	aiInstructions?: string | null;
 	/** Inferred tags from style and character description */
 	tags: string[];
 	/** Generated tokens organized by granularity */

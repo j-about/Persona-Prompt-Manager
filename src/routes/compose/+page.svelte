@@ -336,13 +336,17 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 	 * @param polarity - Whether to add to positive or negative adhoc
 	 */
 	function handleAcceptAiToken(token: GeneratedToken, polarity: 'positive' | 'negative') {
-		const tokenContent = token.content;
+		// Format token with weight if not default (1.0)
+		const formattedToken =
+			Math.abs(token.suggested_weight - 1.0) >= 0.01
+				? `(${token.content}:${token.suggested_weight.toFixed(1)})`
+				: token.content;
 
 		if (polarity === 'positive') {
-			adhocPositive = adhocPositive.trim() ? `${adhocPositive}, ${tokenContent}` : tokenContent;
+			adhocPositive = adhocPositive.trim() ? `${adhocPositive}, ${formattedToken}` : formattedToken;
 			aiGeneratedPositive = aiGeneratedPositive.filter((t) => t !== token);
 		} else {
-			adhocNegative = adhocNegative.trim() ? `${adhocNegative}, ${tokenContent}` : tokenContent;
+			adhocNegative = adhocNegative.trim() ? `${adhocNegative}, ${formattedToken}` : formattedToken;
 			aiGeneratedNegative = aiGeneratedNegative.filter((t) => t !== token);
 		}
 	}
@@ -626,8 +630,15 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 								<span class="text-xs font-medium text-success">Positive:</span>
 								<div class="mt-1 flex flex-wrap gap-2">
 									{#each aiGeneratedPositive as token (token.content)}
-										<div class="badge gap-1 badge-outline badge-success">
+										<div
+											class="badge gap-1 badge-outline badge-success"
+											title={token.rationale ?? ''}
+										>
 											<span>{token.content}</span>
+											{#if Math.abs(token.suggested_weight - 1.0) >= 0.01}
+												<span class="text-xs opacity-70">({token.suggested_weight.toFixed(1)})</span
+												>
+											{/if}
 											<button
 												type="button"
 												class="btn px-1 btn-ghost btn-xs"
@@ -651,8 +662,15 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 								<span class="text-xs font-medium text-error">Negative:</span>
 								<div class="mt-1 flex flex-wrap gap-2">
 									{#each aiGeneratedNegative as token (token.content)}
-										<div class="badge gap-1 badge-outline badge-error">
+										<div
+											class="badge gap-1 badge-outline badge-error"
+											title={token.rationale ?? ''}
+										>
 											<span>{token.content}</span>
+											{#if Math.abs(token.suggested_weight - 1.0) >= 0.01}
+												<span class="text-xs opacity-70">({token.suggested_weight.toFixed(1)})</span
+												>
+											{/if}
 											<button
 												type="button"
 												class="btn px-1 btn-ghost btn-xs"

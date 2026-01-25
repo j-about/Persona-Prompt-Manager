@@ -6,7 +6,7 @@
 	import { generatePersonaWithAi, getAiProviderConfig } from '$lib/services/ai';
 	import { getDefaultImageModelId } from '$lib/services/config';
 	import { createPersona, updatePersona, updateGenerationParams } from '$lib/services/persona';
-	import { createTokensBatch } from '$lib/services/token';
+	import { createToken } from '$lib/services/token';
 	import PhysicalCriteriaForm from './PhysicalCriteriaForm.svelte';
 	import type {
 		AiPersonaGenerationRequest,
@@ -31,6 +31,12 @@
 	let aiInstructions = $state('');
 	let physicalCriteria = $state<PhysicalCriteria>({});
 	let imageModelId = $state('');
+
+	// AI improvement preferences (checked by default = improve via AI)
+	let improveDescriptionViaAi = $state(true);
+	let improveInstructionsViaAi = $state(true);
+	// Skip AI description generation when no description provided (unchecked by default = AI generates)
+	let skipAiDescription = $state(false);
 
 	// UI state
 	let isLoading = $state(false);
@@ -217,28 +223,44 @@
 			const request: AiPersonaGenerationRequest = {
 				name: name.trim(),
 				style: style.trim(),
-				characterDescription: characterDescription.trim(),
+				characterDescription: characterDescription.trim() || null,
 				physicalCriteria: Object.keys(physicalCriteria).length > 0 ? physicalCriteria : undefined,
 				aiInstructions: aiInstructions.trim() || undefined,
 				imageModelId: imageModelId || undefined,
-				existingTags: existingTags.length > 0 ? existingTags : undefined
+				existingTags: existingTags.length > 0 ? existingTags : undefined,
+				improveDescriptionViaAi: improveDescriptionViaAi,
+				improveInstructionsViaAi: improveInstructionsViaAi,
+				skipAiDescription: !characterDescription.trim() && skipAiDescription
 			};
 
 			// 3. Generate persona with AI
 			const aiResponse = await generatePersonaWithAi(config, request);
 
-			// 4. Create persona in database
+			// 4. Determine final description: handle skip case, user's original, or AI-improved
+			const finalDescription =
+				skipAiDescription && !characterDescription.trim()
+					? '' // User explicitly chose to skip AI description generation
+					: improveDescriptionViaAi
+						? aiResponse.description
+						: characterDescription.trim();
+
+			// 5. Determine final instructions: use AI-improved if improving, otherwise user's original
+			const finalInstructions = improveInstructionsViaAi
+				? (aiResponse.aiInstructions ?? (aiInstructions.trim() || null))
+				: aiInstructions.trim() || null;
+
+			// 6. Create persona in database
 			const persona = await createPersona({
 				name: name.trim(),
-				description: aiResponse.description,
+				description: finalDescription,
 				tags: aiResponse.tags
 			});
 
-			// 5. Update persona with AI config (use user-provided instructions)
+			// 7. Update persona with AI config
 			await updatePersona(persona.id, {
 				ai_provider_id: aiProviderId,
 				ai_model_id: aiModelId,
-				ai_instructions: aiInstructions.trim() || null
+				ai_instructions: finalInstructions
 			});
 
 			// 5.5. Set generation parameters with selected image model
@@ -266,14 +288,16 @@
 			for (const [key, granularityId] of Object.entries(granularityMap)) {
 				const tokens = aiResponse.tokens[key as keyof GeneratedTokensByGranularity];
 				if (tokens && tokens.length > 0) {
-					// Join token contents with comma for batch creation
-					const contents = tokens.map((t) => t.content).join(', ');
-					await createTokensBatch({
-						persona_id: persona.id,
-						granularity_id: granularityId,
-						polarity: 'positive',
-						contents: contents
-					});
+					// Create each token individually to preserve AI-suggested weights
+					for (const token of tokens) {
+						await createToken({
+							persona_id: persona.id,
+							granularity_id: granularityId,
+							polarity: 'positive',
+							content: token.content,
+							weight: token.suggested_weight
+						});
+					}
 				}
 			}
 
@@ -366,9 +390,16 @@
 						class="textarea-bordered textarea w-full"
 						placeholder="Optional: Instructions for the AI when generating persona details and tokens..."
 					></textarea>
-					<p class="mt-1 text-xs text-base-content/50">
-						Examples: "Focus on fantasy elements" or "Emphasize ethereal qualities"
-					</p>
+					{#if aiInstructions.trim()}
+						<label class="label mt-2 cursor-pointer justify-start gap-2">
+							<input
+								type="checkbox"
+								class="checkbox checkbox-sm checkbox-primary"
+								bind:checked={improveInstructionsViaAi}
+							/>
+							<span class="label-text">Improve via AI</span>
+						</label>
+					{/if}
 				</div>
 			{/if}
 		</div>
@@ -432,6 +463,25 @@
 					class="textarea-bordered textarea w-full"
 					placeholder="Optional: Describe ethnicity, nationality, age, background, biography, personality, and any distinctive physical features. If not provided, AI will derive from style and physical criteria."
 				></textarea>
+				{#if characterDescription.trim()}
+					<label class="label mt-2 cursor-pointer justify-start gap-2">
+						<input
+							type="checkbox"
+							class="checkbox checkbox-sm checkbox-primary"
+							bind:checked={improveDescriptionViaAi}
+						/>
+						<span class="label-text">Improve via AI</span>
+					</label>
+				{:else}
+					<label class="label mt-2 cursor-pointer justify-start gap-2">
+						<input
+							type="checkbox"
+							class="checkbox checkbox-sm checkbox-primary"
+							bind:checked={skipAiDescription}
+						/>
+						<span class="label-text">Skip AI description generation</span>
+					</label>
+				{/if}
 			</div>
 		</div>
 	</Card>

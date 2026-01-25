@@ -9,7 +9,7 @@
 //!
 //! | Provider  | Default Model           | API Key Required |
 //! |-----------|-------------------------|------------------|
-//! | `OpenAI`    | gpt-5.2-pro             | Yes              |
+//! | `OpenAI`    | gpt-5.2                 | Yes              |
 //! | Anthropic | claude-opus-4-5         | Yes              |
 //! | Google    | gemini-3-pro-preview    | Yes              |
 //! | xAI       | grok-4-1-fast-reasoning | Yes              |
@@ -76,7 +76,7 @@ impl AiProvider {
     #[must_use]
     pub const fn default_model(&self) -> &'static str {
         match self {
-            Self::OpenAI => "gpt-5.2-pro",
+            Self::OpenAI => "gpt-5.2",
             Self::Anthropic => "claude-opus-4-5",
             Self::Google => "gemini-3-pro-preview",
             Self::XAi => "grok-4-1-fast-reasoning",
@@ -349,6 +349,11 @@ pub struct PhysicalCriteria {
     pub lower_body: Option<PhysicalCriteriaLowerBody>,
 }
 
+/// Helper function for serde default that returns true.
+const fn default_true() -> bool {
+    true
+}
+
 /// Request payload for AI-based persona generation.
 ///
 /// Contains all inputs needed to generate a complete persona with tokens
@@ -360,8 +365,8 @@ pub struct AiPersonaGenerationRequest {
     pub name: String,
     /// Desired visual style (e.g., "realistic", "anime", "manga")
     pub style: String,
-    /// Character description including age, background, biography
-    pub character_description: String,
+    /// Character description including age, background, biography (optional)
+    pub character_description: Option<String>,
     /// Physical criteria organized by body region (optional)
     #[serde(default)]
     pub physical_criteria: PhysicalCriteria,
@@ -373,6 +378,15 @@ pub struct AiPersonaGenerationRequest {
     /// Existing tags from other personas (for AI to prefer over new ones)
     #[serde(default)]
     pub existing_tags: Vec<String>,
+    /// Whether to improve/elaborate the character description via AI (default: true)
+    #[serde(default = "default_true")]
+    pub improve_description_via_ai: bool,
+    /// Whether to improve/refine the AI instructions via AI (default: true)
+    #[serde(default = "default_true")]
+    pub improve_instructions_via_ai: bool,
+    /// Whether to skip AI description generation entirely when no description provided (default: false)
+    #[serde(default)]
+    pub skip_ai_description: bool,
 }
 
 /// Generated tokens organized by granularity level.
@@ -402,8 +416,10 @@ pub struct GeneratedTokensByGranularity {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AiPersonaGenerationResponse {
-    /// Elaborated persona description based on user input
+    /// Elaborated persona description based on user input (empty if using user's original)
     pub description: String,
+    /// Improved/refined AI instructions (None if using user's original)
+    pub ai_instructions: Option<String>,
     /// Inferred tags from style and character description
     pub tags: Vec<String>,
     /// Generated tokens organized by granularity

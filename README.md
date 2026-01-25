@@ -248,7 +248,7 @@ The Rust backend follows clean architecture principles with clear separation of 
 
 | Provider  | Default Model           | API Key Required |
 | --------- | ----------------------- | ---------------- |
-| OpenAI    | gpt-5.2-pro             | Yes              |
+| OpenAI    | gpt-5.2                 | Yes              |
 | Anthropic | claude-opus-4-5         | Yes              |
 | Google    | gemini-3-pro-preview    | Yes              |
 | xAI       | grok-4-1-fast-reasoning | Yes              |

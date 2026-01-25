@@ -45,7 +45,7 @@ pub struct Persona {
     pub tags: Vec<String>,
     /// AI provider ID for token generation (e.g., "openai", "anthropic")
     pub ai_provider_id: Option<String>,
-    /// AI model ID for token generation (e.g., "gpt-5.2-pro")
+    /// AI model ID for token generation (e.g., "gpt-5.2")
     pub ai_model_id: Option<String>,
     /// Custom instructions passed to AI during token generation
     pub ai_instructions: Option<String>,

@@ -22,15 +22,14 @@ use crate::infrastructure::tokenizer::{
 // Provider Configuration
 // ============================================================================
 
-/// Build the model identifier for the genai client
+/// Build the model identifier for the genai client.
 fn build_genai_model_identifier(config: &AiProviderConfig) -> String {
     match config.provider {
-        AiProvider::OpenAI => format!("openai/{}", config.model),
-        AiProvider::Anthropic => format!("anthropic/{}", config.model),
-        AiProvider::Google => format!("gemini/{}", config.model),
-        // xAI: genai auto-detects models starting with "grok" (no prefix needed)
-        AiProvider::XAi => config.model.clone(),
-        // Ollama: genai auto-detects based on model name (no prefix needed)
+        AiProvider::OpenAI => format!("openai::{}", config.model),
+        AiProvider::Anthropic => format!("anthropic::{}", config.model),
+        AiProvider::Google => format!("gemini::{}", config.model),
+        AiProvider::XAi => format!("xai::{}", config.model),
+        // Ollama is the fallback adapter, no namespace needed
         AiProvider::Ollama => config.model.clone(),
     }
 }
@@ -46,6 +45,8 @@ fn build_persona_generation_system_prompt(
     prompt_context: &ImageModelPromptContext,
     tokenizer_config: &TokenizerConfig,
     existing_tags: &[String],
+    improve_description_via_ai: bool,
+    skip_ai_description: bool,
 ) -> String {
     let existing_tags_section = if existing_tags.is_empty() {
         String::new()
@@ -54,6 +55,14 @@ fn build_persona_generation_system_prompt(
             "\nEXISTING TAGS (prefer these over creating new similar ones):\n{}",
             existing_tags.join(", ")
         )
+    };
+
+    let description_instruction = if skip_ai_description {
+        "DESCRIPTION HANDLING:\nDo NOT generate a description. The user has explicitly chosen to skip description generation. Focus on generating tokens and tags only."
+    } else if improve_description_via_ai {
+        "DESCRIPTION ELABORATION:\nExpand the user's character description into a cohesive narrative suitable for consistent image generation."
+    } else {
+        "DESCRIPTION HANDLING:\nThe user's character description will be used as-is. Focus on generating tokens and tags only."
     };
 
     format!(
@@ -89,12 +98,12 @@ GRANULARITY ORGANIZATION:
 TAG INFERENCE:
 Derive 1-3 relevant tags from the style and description (e.g., "fantasy", "female", "anime").{existing_tags_section}
 
-DESCRIPTION ELABORATION:
-Expand the user's character description into a cohesive narrative suitable for consistent image generation."#,
+{description_instruction}"#,
         model_name = prompt_context.display_name,
         family = prompt_context.family,
         total_tokens = tokenizer_config.usable_tokens,
         existing_tags_section = existing_tags_section,
+        description_instruction = description_instruction,
     )
 }
 
@@ -105,16 +114,26 @@ fn build_persona_generation_user_prompt(request: &AiPersonaGenerationRequest) ->
     // Basic information
     sections.push(format!("CHARACTER NAME: {}", request.name));
     sections.push(format!("DESIRED STYLE: {}", request.style));
-    if request.character_description.is_empty() {
+
+    // Character description - conditionally mark for preservation, improvement, or skip
+    // Treat None the same as empty string
+    let description = request.character_description.as_deref().unwrap_or("");
+    if request.skip_ai_description {
+        sections.push(
+            "CHARACTER DESCRIPTION: SKIP - User explicitly chose not to generate a description. Do NOT include a description in the response."
+                .to_string(),
+        );
+    } else if !request.improve_description_via_ai && !description.is_empty() {
+        sections.push(format!(
+            "CHARACTER DESCRIPTION (REFERENCE ONLY - DO NOT INCLUDE IN RESPONSE):\n```\n{description}\n```"
+        ));
+    } else if description.is_empty() {
         sections.push(
             "CHARACTER DESCRIPTION: Not provided - derive from style and physical criteria"
                 .to_string(),
         );
     } else {
-        sections.push(format!(
-            "CHARACTER DESCRIPTION:\n```\n{}\n```",
-            request.character_description
-        ));
+        sections.push(format!("CHARACTER DESCRIPTION:\n```\n{description}\n```"));
     }
 
     // Physical criteria by granularity - JSON format with subgroups matching the UI form
@@ -210,10 +229,22 @@ fn build_persona_generation_user_prompt(request: &AiPersonaGenerationRequest) ->
         serde_json::to_string_pretty(&physical_json).unwrap()
     ));
 
-    // Custom instructions
+    // Custom instructions - conditionally mark for exact application or improvement
     if let Some(instructions) = &request.ai_instructions {
         if !instructions.is_empty() {
-            sections.push(format!("CUSTOM INSTRUCTIONS:\n```\n{instructions}\n```"));
+            if request.improve_instructions_via_ai {
+                sections.push(format!(
+                    r"CUSTOM INSTRUCTIONS (IMPROVE while preserving original content):
+The user provided the following instructions. You may reorganize, clarify wording, or improve formatting, but you MUST preserve all original content and meaning. Do NOT rewrite into something different.
+```
+{instructions}
+```"
+                ));
+            } else {
+                sections.push(format!(
+                    "CUSTOM INSTRUCTIONS (apply exactly as written):\n```\n{instructions}\n```"
+                ));
+            }
         }
     }
 
@@ -229,10 +260,51 @@ fn build_persona_generation_user_prompt(request: &AiPersonaGenerationRequest) ->
             .to_string(),
     );
 
-    // Section: Expected Output Format
-    let output_section = r#"EXPECTED OUTPUT:
+    // Section: Expected Output Format - conditional based on improvement flags
+    let description_output_text = if request.skip_ai_description {
+        r#"- "description": OMIT this field entirely (the user chose to skip description generation)"#
+    } else if request.improve_description_via_ai {
+        r#"- "description" (string, required): Elaborated persona description as a cohesive narrative"#
+    } else {
+        r#"- "description": OMIT this field entirely (the user's original description will be used directly)"#
+    };
+
+    // Determine if we should ask AI to improve instructions
+    // Only ask for improved instructions if BOTH: flag is true AND user provided instructions
+    let has_instructions = request
+        .ai_instructions
+        .as_ref()
+        .is_some_and(|s| !s.is_empty());
+    let should_improve_instructions = request.improve_instructions_via_ai && has_instructions;
+
+    let instructions_output_text = if should_improve_instructions {
+        r#"- "ai_instructions" (string, required): Improved version of user's instructions - MUST preserve all original content and meaning, only improve clarity/organization"#
+    } else {
+        r#"- "ai_instructions": OMIT this field entirely (the user's original instructions will be used directly)"#
+    };
+
+    let description_example = if request.skip_ai_description {
+        ""
+    } else if request.improve_description_via_ai {
+        r#""description": "A graceful elven warrior with silver hair...",
+  "#
+    } else {
+        ""
+    };
+
+    // Example shows improving organization while preserving ALL original content
+    let instructions_example = if should_improve_instructions {
+        r#""ai_instructions": "[Improved version of user's instructions with same content, better organization]",
+  "#
+    } else {
+        ""
+    };
+
+    let output_section = format!(
+        r#"EXPECTED OUTPUT:
 Respond with a JSON object containing:
-- "description" (string): Elaborated persona description as a cohesive narrative
+{description_output_text}
+{instructions_output_text}
 - "tags" (array of strings): 1-3 relevant tags inferred from style and description
 - "tokens" (object): Token arrays organized by body region
 
@@ -241,44 +313,50 @@ Each token object contains:
 - "suggested_weight" (number, required): Weight value where 1.0 is normal emphasis
 - "rationale" (string, optional): Brief explanation for this token
 
+IMPORTANT: Always apply any custom instructions provided above when generating all content.
+
 Example format:
 ```json
-{
-  "description": "A graceful elven warrior with silver hair...",
-  "tags": ["fantasy", "female", "elf"],
-  "tokens": {
+{{
+  {description_example}{instructions_example}"tags": ["fantasy", "female", "elf"],
+  "tokens": {{
     "style": [
-      {"content": "masterpiece", "suggested_weight": 1.2, "rationale": "Quality boost"}
+      {{"content": "masterpiece", "suggested_weight": 1.2, "rationale": "Quality boost"}}
     ],
     "general": [
-      {"content": "fair skin", "suggested_weight": 1.0, "rationale": "Elven complexion"}
+      {{"content": "fair skin", "suggested_weight": 1.0, "rationale": "Elven complexion"}}
     ],
     "hair": [
-      {"content": "long silver hair", "suggested_weight": 1.1, "rationale": "Distinctive feature"}
+      {{"content": "long silver hair", "suggested_weight": 1.1, "rationale": "Distinctive feature"}}
     ],
     "face": [
-      {"content": "pointed ears", "suggested_weight": 1.2, "rationale": "Elven trait"}
+      {{"content": "pointed ears", "suggested_weight": 1.2, "rationale": "Elven trait"}}
     ],
     "upper_body": [
-      {"content": "slender build", "suggested_weight": 1.0, "rationale": "Elven physique"}
+      {{"content": "slender build", "suggested_weight": 1.0, "rationale": "Elven physique"}}
     ],
     "midsection": [
-      {"content": "narrow waist", "suggested_weight": 1.0, "rationale": "Athletic build"}
+      {{"content": "narrow waist", "suggested_weight": 1.0, "rationale": "Athletic build"}}
     ],
     "lower_body": [
-      {"content": "long legs", "suggested_weight": 1.0, "rationale": "Tall stature"}
+      {{"content": "long legs", "suggested_weight": 1.0, "rationale": "Tall stature"}}
     ]
-  }
-}
-```"#;
+  }}
+}}
+```"#
+    );
 
-    sections.push(output_section.to_string());
+    sections.push(output_section);
 
     sections.join("\n\n")
 }
 
 /// Build the JSON schema for AI persona generation response
-fn build_persona_generation_json_schema() -> serde_json::Value {
+fn build_persona_generation_json_schema(
+    improve_description_via_ai: bool,
+    improve_instructions_via_ai: bool,
+    skip_ai_description: bool,
+) -> serde_json::Value {
     let token_array_schema = json!({
         "type": "array",
         "items": {
@@ -292,12 +370,41 @@ fn build_persona_generation_json_schema() -> serde_json::Value {
         }
     });
 
+    // Build required fields based on what AI should elaborate
+    // Don't require description when skipping or when using user's original
+    let mut required = vec!["tags", "tokens"];
+    if !skip_ai_description && improve_description_via_ai {
+        required.insert(0, "description");
+    }
+    if improve_instructions_via_ai {
+        required.push("ai_instructions");
+    }
+    let required_fields = json!(required);
+
+    let description_text = if skip_ai_description {
+        "Optional - omit this field when user chose to skip description generation"
+    } else if improve_description_via_ai {
+        "Elaborated persona description as a cohesive narrative"
+    } else {
+        "Optional - omit this field when using user's original description"
+    };
+
+    let instructions_text = if improve_instructions_via_ai {
+        "Improved/refined custom instructions for future token generation"
+    } else {
+        "Optional - omit this field when using user's original instructions"
+    };
+
     json!({
         "type": "object",
         "properties": {
             "description": {
                 "type": "string",
-                "description": "Elaborated persona description"
+                "description": description_text
+            },
+            "ai_instructions": {
+                "type": "string",
+                "description": instructions_text
             },
             "tags": {
                 "type": "array",
@@ -319,14 +426,19 @@ fn build_persona_generation_json_schema() -> serde_json::Value {
                 "required": ["style", "general", "hair", "face", "upper_body", "midsection", "lower_body"]
             }
         },
-        "required": ["description", "tags", "tokens"]
+        "required": required_fields
     })
 }
 
 /// Internal structure for parsing AI persona generation response
 #[derive(Debug, Clone, serde::Deserialize)]
 struct PersonaGenerationRaw {
-    description: String,
+    /// Description is optional - only present when AI is asked to elaborate it
+    #[serde(default)]
+    description: Option<String>,
+    /// AI instructions are optional - only present when AI is asked to improve them
+    #[serde(default)]
+    ai_instructions: Option<String>,
     tags: Vec<String>,
     tokens: GeneratedTokensByGranularity,
 }
@@ -383,6 +495,8 @@ pub async fn generate_persona(
         &prompt_context,
         &tokenizer_config,
         &request.existing_tags,
+        request.improve_description_via_ai,
+        request.skip_ai_description,
     );
     let user_prompt = build_persona_generation_user_prompt(request);
 
@@ -391,7 +505,18 @@ pub async fn generate_persona(
         .append_message(ChatMessage::user(user_prompt));
 
     // Create ChatOptions with structured response format for API-level schema enforcement
-    let json_schema = build_persona_generation_json_schema();
+    // Only require ai_instructions in schema if user actually provided instructions to improve
+    let has_instructions = request
+        .ai_instructions
+        .as_ref()
+        .is_some_and(|s| !s.is_empty());
+    let should_improve_instructions = request.improve_instructions_via_ai && has_instructions;
+
+    let json_schema = build_persona_generation_json_schema(
+        request.improve_description_via_ai,
+        should_improve_instructions,
+        request.skip_ai_description,
+    );
     let chat_options =
         ChatOptions::default().with_response_format(JsonSpec::new("persona", json_schema));
 
@@ -409,7 +534,10 @@ pub async fn generate_persona(
     let parsed = parse_persona_response(content)?;
 
     Ok(AiPersonaGenerationResponse {
-        description: parsed.description,
+        // Use empty string if description was omitted (when not improving via AI)
+        description: parsed.description.unwrap_or_default(),
+        // Use None if ai_instructions was omitted (when not improving via AI)
+        ai_instructions: parsed.ai_instructions,
         tags: parsed.tags,
         tokens: parsed.tokens,
         provider: config.provider,
@@ -429,7 +557,7 @@ fn build_token_generation_system_prompt(
     tokenizer_config: &crate::infrastructure::tokenizer::TokenizerConfig,
 ) -> String {
     format!(
-        r#"You are an expert prompt engineer for {model_name} ({family} family) image generation, specializing in token enhancement and refinement.
+        r"You are an expert prompt engineer for {model_name} ({family} family) image generation, specializing in token enhancement and refinement.
 
 Your task is to generate COMPLEMENTARY tokens that enhance an existing persona prompt for a specific context or action.
 Token budget: {limit} tokens per prompt.
@@ -468,7 +596,7 @@ These tokens are NOT body-region specific - they enhance the overall image gener
 SEMANTIC COHERENCE:
 - Maintain consistency with the persona's established visual identity
 - New tokens should feel like natural extensions, not contradictions
-- Consider how tokens will interact when combined in the final prompt"#,
+- Consider how tokens will interact when combined in the final prompt",
         model_name = prompt_context.display_name,
         family = prompt_context.family,
         limit = tokenizer_config.usable_tokens,
@@ -485,9 +613,7 @@ fn build_token_generation_user_prompt(request: &TokenGenerationRequest) -> Strin
     let mut persona_section = format!("PERSONA: {}", request.persona_name);
     if let Some(desc) = &request.persona_description {
         if !desc.is_empty() {
-            persona_section.push_str(&format!(
-                "\nCharacter Description:\n```\n{desc}\n```"
-            ));
+            persona_section.push_str(&format!("\nCharacter Description:\n```\n{desc}\n```"));
         }
     }
     sections.push(persona_section);
