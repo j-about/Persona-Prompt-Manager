@@ -279,7 +279,7 @@ additional sections for generation parameters and token management.
 					</p>
 				</div>
 
-				<div class="grid grid-cols-2 gap-4">
+				<div class="grid grid-cols-3 gap-4">
 					<div>
 						<label for="seed" class="block text-sm font-medium text-base-content"> Seed </label>
 						<input
@@ -317,7 +317,9 @@ additional sections for generation parameters and token management.
 							class="input-bordered input w-full"
 						/>
 					</div>
+				</div>
 
+				<div class="grid grid-cols-2 gap-4">
 					<div>
 						<label for="sampler" class="block text-sm font-medium text-base-content">
 							Sampler
@@ -331,17 +333,17 @@ additional sections for generation parameters and token management.
 						/>
 					</div>
 
-					<div class="col-span-2">
+					<div>
 						<label for="scheduler" class="block text-sm font-medium text-base-content">
 							Scheduler
 						</label>
-						<select id="scheduler" bind:value={scheduler} class="select-bordered select w-full">
-							<option value={null}>Default</option>
-							<option value="normal">Normal</option>
-							<option value="karras">Karras</option>
-							<option value="exponential">Exponential</option>
-							<option value="sgm_uniform">SGM Uniform</option>
-						</select>
+						<input
+							type="text"
+							id="scheduler"
+							bind:value={scheduler}
+							class="input-bordered input w-full"
+							placeholder="e.g., karras"
+						/>
 					</div>
 				</div>
 			</div>

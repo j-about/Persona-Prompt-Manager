@@ -279,7 +279,7 @@ Draft Mode Flow:
 			{#if persona.description}
 				<Card>
 					<h2 class="mb-2 text-lg font-semibold text-base-content">Description</h2>
-					<p class="whitespace-pre-wrap text-base-content/70">
+					<p class="whitespace-pre-wrap text-base-content/70 select-text">
 						{persona.description}
 					</p>
 				</Card>
@@ -292,34 +292,37 @@ Draft Mode Flow:
 					<dl class="grid grid-cols-3 gap-4 text-sm">
 						<div>
 							<dt class="font-medium text-base-content/60">Model</dt>
-							<dd class="mt-1 truncate text-base-content" title={generationParams.model_id}>
+							<dd
+								class="mt-1 truncate text-base-content select-text"
+								title={generationParams.model_id}
+							>
 								{generationParams.model_id.split('/').pop()}
 							</dd>
 						</div>
 						<div>
 							<dt class="font-medium text-base-content/60">Steps</dt>
-							<dd class="mt-1 text-base-content">{generationParams.steps}</dd>
+							<dd class="mt-1 text-base-content select-text">{generationParams.steps}</dd>
 						</div>
 						<div>
 							<dt class="font-medium text-base-content/60">CFG Scale</dt>
-							<dd class="mt-1 text-base-content">{generationParams.cfg_scale}</dd>
+							<dd class="mt-1 text-base-content select-text">{generationParams.cfg_scale}</dd>
 						</div>
 						<div>
 							<dt class="font-medium text-base-content/60">Seed</dt>
-							<dd class="mt-1 text-base-content">
+							<dd class="mt-1 text-base-content select-text">
 								{generationParams.seed === -1 ? 'Random' : generationParams.seed}
 							</dd>
 						</div>
 						{#if generationParams.sampler}
 							<div>
 								<dt class="font-medium text-base-content/60">Sampler</dt>
-								<dd class="mt-1 text-base-content">{generationParams.sampler}</dd>
+								<dd class="mt-1 text-base-content select-text">{generationParams.sampler}</dd>
 							</div>
 						{/if}
 						{#if generationParams.scheduler}
 							<div>
 								<dt class="font-medium text-base-content/60">Scheduler</dt>
-								<dd class="mt-1 text-base-content capitalize">
+								<dd class="mt-1 text-base-content capitalize select-text">
 									{generationParams.scheduler}
 								</dd>
 							</div>
@@ -357,7 +360,7 @@ Draft Mode Flow:
 							<div>
 								<dt class="mb-1 font-medium text-base-content/60">Custom Instructions</dt>
 								<dd
-									class="rounded-lg bg-base-200 p-3 text-sm whitespace-pre-wrap text-base-content"
+									class="rounded-lg bg-base-200 p-3 text-sm whitespace-pre-wrap text-base-content select-text"
 								>
 									{persona.ai_instructions}
 								</dd>
@@ -380,7 +383,7 @@ Draft Mode Flow:
 					</div>
 					<div>
 						<dt class="text-sm font-medium text-base-content/60">ID</dt>
-						<dd class="font-mono text-sm text-base-content">{persona.id}</dd>
+						<dd class="font-mono text-sm text-base-content select-text">{persona.id}</dd>
 					</div>
 				</dl>
 			</Card>

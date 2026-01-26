@@ -49,7 +49,7 @@ Edit and delete buttons appear on hover when not in read-only mode.
 		{token.polarity === 'positive' ? '+' : '-'}
 	</Badge>
 
-	<span class="flex-1 text-sm text-base-content">
+	<span class="flex-1 text-sm text-base-content select-text">
 		{token.content}
 		{#if weightDisplay}
 			<span class="ml-1 text-base-content/60">{weightDisplay}</span>

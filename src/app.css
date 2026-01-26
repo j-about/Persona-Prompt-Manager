@@ -2,3 +2,17 @@
 @plugin 'daisyui' {
 	themes: cyberpunk --default;
 }
+
+@layer base {
+	body {
+		user-select: none;
+		-webkit-user-select: none;
+	}
+
+	input,
+	textarea,
+	[contenteditable='true'] {
+		user-select: text;
+		-webkit-user-select: text;
+	}
+}

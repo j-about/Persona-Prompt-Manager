@@ -27,13 +27,13 @@ Displays the app logo, name, version, description, and license information.
 		<h2 class="text-2xl font-bold text-base-content">Persona Prompt Manager</h2>
 		<p class="mt-1 text-base-content/60">Version {appVersion}</p>
 
-		<p class="mt-6 max-w-md text-base-content/70">
+		<p class="mt-6 max-w-md text-base-content/70 select-text">
 			A cross-platform desktop application built in Rust that enables digital artists and AI image
 			generation practitioners to create, manage, and compose prompts for fictional character
 			generation with consistency and precision.
 		</p>
 
-		<div class="mt-8 space-y-1 text-sm text-base-content/50">
+		<div class="mt-8 space-y-1 text-sm text-base-content/50 select-text">
 			<p>© {CURRENT_YEAR} Jonathan About</p>
 			<p>MIT License</p>
 		</div>

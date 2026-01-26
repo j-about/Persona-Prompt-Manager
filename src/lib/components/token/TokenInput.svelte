@@ -37,8 +37,6 @@ batch creation by parsing comma-delimited input.
 	let polarity = $state<TokenPolarity>('positive');
 	/** Token weight multiplier (default 1.0) */
 	let weight = $state(1.0);
-	/** Controls visibility of the weight input */
-	let showAdvanced = $state(false);
 
 	/**
 	 * Initializes granularity selection to first available level.
@@ -72,25 +70,28 @@ batch creation by parsing comma-delimited input.
 		content = '';
 		weight = 1.0;
 	}
-
-	/** Toggles polarity between positive and negative */
-	function togglePolarity() {
-		polarity = polarity === 'positive' ? 'negative' : 'positive';
-	}
 </script>
 
 <form onsubmit={handleSubmit} class="space-y-3">
 	<div class="flex gap-2">
-		<button
-			type="button"
-			class="btn btn-square btn-sm {polarity === 'positive'
-				? 'btn-soft btn-success'
-				: 'btn-soft btn-error'}"
-			onclick={togglePolarity}
-			title="Toggle polarity"
+		<select
+			bind:value={granularityId}
+			class="select-bordered select w-auto select-sm"
+			disabled={isLoading}
 		>
-			{polarity === 'positive' ? '+' : '-'}
-		</button>
+			{#each granularityLevels as level (level.id)}
+				<option value={level.id}>{level.name}</option>
+			{/each}
+		</select>
+
+		<select
+			bind:value={polarity}
+			class="select-bordered select w-auto select-sm"
+			disabled={isLoading}
+		>
+			<option value="positive">Positive (+)</option>
+			<option value="negative">Negative (-)</option>
+		</select>
 
 		<input
 			type="text"
@@ -100,43 +101,18 @@ batch creation by parsing comma-delimited input.
 			disabled={isLoading}
 		/>
 
-		<select
-			bind:value={granularityId}
-			class="select-bordered select select-sm"
+		<input
+			type="number"
+			bind:value={weight}
+			min="0.1"
+			max="2.0"
+			step="0.1"
+			class="input-bordered input input-sm w-16"
 			disabled={isLoading}
-		>
-			{#each granularityLevels as level (level.id)}
-				<option value={level.id}>{level.name}</option>
-			{/each}
-		</select>
+			title="Weight (0.1-2.0)"
+		/>
 
 		<Button type="submit" size="sm" disabled={!isValid || isLoading}>Add</Button>
-	</div>
-
-	<div class="flex items-center gap-4">
-		<button
-			type="button"
-			class="btn text-base-content/60 btn-ghost btn-xs"
-			onclick={() => (showAdvanced = !showAdvanced)}
-		>
-			{showAdvanced ? 'Hide' : 'Show'} weight option
-		</button>
-
-		{#if showAdvanced}
-			<div class="flex items-center gap-2">
-				<label for="weight" class="text-xs text-base-content/60">Weight:</label>
-				<input
-					type="number"
-					id="weight"
-					bind:value={weight}
-					min="0.1"
-					max="2.0"
-					step="0.1"
-					class="input-bordered input input-sm w-20"
-					disabled={isLoading}
-				/>
-			</div>
-		{/if}
 	</div>
 
 	<p class="text-xs text-base-content/60">

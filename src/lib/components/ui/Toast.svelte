@@ -41,7 +41,7 @@ Each toast includes a dismiss button.
 					d={typeIcons[toast.type]}
 				/>
 			</svg>
-			<span>{toast.message}</span>
+			<span class="select-text">{toast.message}</span>
 			<button
 				type="button"
 				class="btn btn-ghost btn-xs"

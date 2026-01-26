@@ -457,7 +457,7 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 						<h3 class="mb-2 text-sm font-medium text-success">Positive</h3>
 						<div class="min-h-[50px] border border-success/30 bg-success/10 p-3">
 							{#if basePrompt.positive_prompt}
-								<p class="text-sm break-words whitespace-pre-wrap text-base-content">
+								<p class="text-sm break-words whitespace-pre-wrap text-base-content select-text">
 									{basePrompt.positive_prompt}
 								</p>
 							{:else}
@@ -471,7 +471,7 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 						<h3 class="mb-2 text-sm font-medium text-error">Negative</h3>
 						<div class="min-h-[50px] border border-error/30 bg-error/10 p-3">
 							{#if basePrompt.negative_prompt}
-								<p class="text-sm break-words whitespace-pre-wrap text-base-content">
+								<p class="text-sm break-words whitespace-pre-wrap text-base-content select-text">
 									{basePrompt.negative_prompt}
 								</p>
 							{:else}
@@ -510,15 +510,12 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 				<!-- Configured State -->
 				<div class="space-y-4">
 					<div>
-						<label for="ai-context" class="mb-1 block text-sm font-medium text-base-content">
-							Describe the context or action
-						</label>
 						<textarea
 							id="ai-context"
 							bind:value={aiContextDescription}
 							rows={3}
 							class="textarea-bordered textarea w-full"
-							placeholder="e.g., portrait shot, outdoor setting, dramatic lighting..."
+							placeholder="Describe the context or action"
 						></textarea>
 						<p class="mt-1 text-xs text-base-content/60">
 							Describe what you want to generate. The AI will suggest relevant tokens.
@@ -727,7 +724,7 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 					</div>
 					<div class="min-h-[60px] border border-success/30 bg-success/10 p-4">
 						{#if composedPrompt.positive_prompt}
-							<p class="text-sm break-words whitespace-pre-wrap text-base-content">
+							<p class="text-sm break-words whitespace-pre-wrap text-base-content select-text">
 								{composedPrompt.positive_prompt}
 							</p>
 						{:else}
@@ -749,7 +746,7 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 					</div>
 					<div class="min-h-[60px] border border-error/30 bg-error/10 p-4">
 						{#if composedPrompt.negative_prompt}
-							<p class="text-sm break-words whitespace-pre-wrap text-base-content">
+							<p class="text-sm break-words whitespace-pre-wrap text-base-content select-text">
 								{composedPrompt.negative_prompt}
 							</p>
 						{:else}

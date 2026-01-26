@@ -77,7 +77,7 @@ edit, duplicate, and delete operations.
 					{persona.name}
 				</h3>
 				{#if persona.description}
-					<p class="mt-1 line-clamp-2 text-sm text-base-content/70">
+					<p class="mt-1 line-clamp-2 text-sm text-base-content/70 select-text">
 						{persona.description}
 					</p>
 				{/if}

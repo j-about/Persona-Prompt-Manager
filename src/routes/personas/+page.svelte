@@ -21,6 +21,11 @@ editing, duplicating, and deleting. Loads personas from the store on mount.
 	/** Persona pending deletion confirmation */
 	let personaToDelete = $state<Persona | null>(null);
 
+	/** Controls visibility of the duplicate confirmation dialog */
+	let showDuplicateConfirm = $state(false);
+	/** Persona pending duplication confirmation */
+	let personaToDuplicate = $state<Persona | null>(null);
+
 	/** Current search text filter */
 	let searchQuery = $state('');
 
@@ -139,11 +144,27 @@ editing, duplicating, and deleting. Loads personas from the store on mount.
 	}
 
 	/**
-	 * Creates a duplicate of the persona.
+	 * Opens the duplicate confirmation dialog for a persona.
 	 * @param persona - The persona to duplicate
 	 */
-	async function handleDuplicate(persona: Persona) {
-		await personaStore.duplicate(persona.id);
+	function handleDuplicate(persona: Persona) {
+		personaToDuplicate = persona;
+		showDuplicateConfirm = true;
+	}
+
+	/** Executes persona duplication and resets dialog state */
+	async function confirmDuplicate() {
+		if (personaToDuplicate) {
+			await personaStore.duplicate(personaToDuplicate.id);
+			showDuplicateConfirm = false;
+			personaToDuplicate = null;
+		}
+	}
+
+	/** Closes duplicate dialog without duplicating */
+	function cancelDuplicate() {
+		showDuplicateConfirm = false;
+		personaToDuplicate = null;
 	}
 
 	/**
@@ -236,6 +257,22 @@ editing, duplicating, and deleting. Loads personas from the store on mount.
 		<p>
 			Are you sure you want to delete <strong>{personaToDelete.name}</strong>? This will also delete
 			all associated tokens. This action cannot be undone.
+		</p>
+	</ConfirmDialog>
+{/if}
+
+{#if personaToDuplicate}
+	<ConfirmDialog
+		open={showDuplicateConfirm}
+		title="Duplicate Persona"
+		confirmText="Duplicate"
+		confirmVariant="primary"
+		onconfirm={confirmDuplicate}
+		oncancel={cancelDuplicate}
+	>
+		<p>
+			Are you sure you want to duplicate <strong>{personaToDuplicate.name}</strong>? A copy will be
+			created with the same content and tokens.
 		</p>
 	</ConfirmDialog>
 {/if}

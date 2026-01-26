@@ -89,19 +89,6 @@ from updating if the source token prop changes during editing.
 		<h3 class="text-lg font-bold">Edit Token</h3>
 
 		<form onsubmit={handleSubmit} class="mt-4 space-y-4">
-			<div>
-				<label for="content" class="label">
-					<span class="label-text">Content</span>
-				</label>
-				<input
-					type="text"
-					id="content"
-					bind:value={content}
-					class="input-bordered input w-full"
-					disabled={isLoading}
-				/>
-			</div>
-
 			<div class="grid grid-cols-2 gap-4">
 				<div>
 					<label for="granularity" class="label">
@@ -133,6 +120,19 @@ from updating if the source token prop changes during editing.
 						<option value="negative">Negative (-)</option>
 					</select>
 				</div>
+			</div>
+
+			<div>
+				<label for="content" class="label">
+					<span class="label-text">Content</span>
+				</label>
+				<input
+					type="text"
+					id="content"
+					bind:value={content}
+					class="input-bordered input w-full"
+					disabled={isLoading}
+				/>
 			</div>
 
 			<div>
