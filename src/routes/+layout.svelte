@@ -15,7 +15,7 @@ config store and credential store availability check on Linux.
 	import { resolve } from '$app/paths';
 	import { Toast, DonationPopup } from '$lib/components/ui';
 	import { checkCredentialStore } from '$lib/services/settings';
-	import { configStore, donationStore } from '$lib/stores';
+	import { configStore, donationStore, uiPreferencesStore } from '$lib/stores';
 	import { getVersion } from '@tauri-apps/api/app';
 	import { exit } from '@tauri-apps/plugin-process';
 	import { type as osType } from '@tauri-apps/plugin-os';
@@ -49,6 +49,9 @@ config store and credential store availability check on Linux.
 
 			// Initialize configuration from Rust backend (single source of truth)
 			await configStore.initialize();
+
+			// Initialize UI preferences from file store
+			await uiPreferencesStore.initialize();
 
 			// Get app version from Tauri (reads from tauri.conf.json)
 			appVersion = await getVersion();

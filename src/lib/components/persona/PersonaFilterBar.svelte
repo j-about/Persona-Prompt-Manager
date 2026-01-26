@@ -1,40 +1,57 @@
 <!--
 @component
-PersonaFilterBar - Search and tag filter controls for persona list.
+PersonaFilterBar - Search, sort, and tag filter controls for persona list.
 
-Provides a search input for filtering by name and clickable tag badges
-for filtering by tags. Includes a clear filters button when active.
+Provides a search input for filtering by name, a sort dropdown for ordering,
+and a multiselect dropdown for filtering by tags. Controls are right-aligned.
 -->
 <script lang="ts">
-	import { Button } from '$lib/components/ui';
+	import { MultiSelect } from '$lib/components/ui';
+
+	/** Option with value and optional disabled state */
+	interface SelectOption {
+		value: string;
+		disabled?: boolean;
+	}
 
 	/**
 	 * @property searchQuery - Current search text (bindable)
 	 * @property selectedTags - Currently selected tag filters
-	 * @property availableTags - All available tags to filter by
+	 * @property availableTags - Tag options with disabled state for incompatible combinations
+	 * @property sortValue - Current sort value (e.g., 'name-asc')
 	 * @property onSearchChange - Callback when search text changes
-	 * @property onTagToggle - Callback when a tag is toggled
-	 * @property onClearFilters - Callback to reset all filters
+	 * @property onTagsChange - Callback when tag selection changes
+	 * @property onSortChange - Callback when sort selection changes
 	 */
 	interface Props {
 		searchQuery: string;
 		selectedTags: string[];
-		availableTags: string[];
+		availableTags: SelectOption[];
+		sortValue: string;
 		onSearchChange: (query: string) => void;
-		onTagToggle: (tag: string) => void;
-		onClearFilters: () => void;
+		onTagsChange: (tags: string[]) => void;
+		onSortChange: (value: string) => void;
 	}
 
 	let {
 		searchQuery,
 		selectedTags,
 		availableTags,
+		sortValue,
 		onSearchChange,
-		onTagToggle,
-		onClearFilters
+		onTagsChange,
+		onSortChange
 	}: Props = $props();
 
-	const hasActiveFilters = $derived(searchQuery.trim() !== '' || selectedTags.length > 0);
+	/** Sort options with display labels */
+	const sortOptions = [
+		{ value: 'name-asc', label: 'Name (A-Z)' },
+		{ value: 'name-desc', label: 'Name (Z-A)' },
+		{ value: 'created_at-desc', label: 'Created (Newest)' },
+		{ value: 'created_at-asc', label: 'Created (Oldest)' },
+		{ value: 'updated_at-desc', label: 'Updated (Newest)' },
+		{ value: 'updated_at-asc', label: 'Updated (Oldest)' }
+	];
 </script>
 
 <div class="mb-6 space-y-3">
@@ -61,31 +78,24 @@ for filtering by tags. Includes a clear filters button when active.
 		/>
 	</div>
 
-	{#if availableTags.length > 0}
-		<div class="flex flex-wrap items-center gap-2">
-			<span class="text-sm text-base-content/60">Filter by tags:</span>
-			{#each availableTags as tag (tag)}
-				<button
-					type="button"
-					class="badge cursor-pointer badge-lg transition-colors {selectedTags.includes(tag)
-						? 'badge-primary'
-						: 'hover:badge-primary/30 badge-ghost'}"
-					onclick={() => onTagToggle(tag)}
-				>
-					{tag}
-				</button>
+	<div class="flex flex-wrap items-center justify-end gap-2">
+		{#if availableTags.length > 0}
+			<MultiSelect
+				options={availableTags}
+				selected={selectedTags}
+				placeholder="Filter by tags"
+				onchange={onTagsChange}
+			/>
+		{/if}
+
+		<select
+			class="select-bordered select w-auto select-sm"
+			value={sortValue}
+			onchange={(e) => onSortChange(e.currentTarget.value)}
+		>
+			{#each sortOptions as option (option.value)}
+				<option value={option.value}>{option.label}</option>
 			{/each}
-			{#if hasActiveFilters}
-				<Button variant="ghost" size="sm" class="ml-auto" onclick={onClearFilters}
-					>Clear filters</Button
-				>
-			{/if}
-		</div>
-	{:else if hasActiveFilters}
-		<div class="flex justify-end">
-			<Button variant="ghost" size="sm" class="ml-auto" onclick={onClearFilters}
-				>Clear filters</Button
-			>
-		</div>
-	{/if}
+		</select>
+	</div>
 </div>

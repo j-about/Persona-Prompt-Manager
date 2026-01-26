@@ -1,8 +1,8 @@
 <!--
 @component
-Personas List Page - Displays all personas with filtering capabilities.
+Personas List Page - Displays all personas with filtering and sorting capabilities.
 
-Shows a searchable, filterable list of personas with actions for viewing,
+Shows a searchable, filterable, sortable list of personas with actions for viewing,
 editing, duplicating, and deleting. Loads personas from the store on mount.
 
 @route /personas
@@ -13,7 +13,7 @@ editing, duplicating, and deleting. Loads personas from the store on mount.
 	import { resolve } from '$app/paths';
 	import { Button, ConfirmDialog } from '$lib/components/ui';
 	import { PersonaList, PersonaFilterBar } from '$lib/components/persona';
-	import { personaStore } from '$lib/stores';
+	import { personaStore, uiPreferencesStore } from '$lib/stores';
 	import type { Persona } from '$lib/types';
 
 	/** Controls visibility of the delete confirmation dialog */
@@ -23,30 +23,75 @@ editing, duplicating, and deleting. Loads personas from the store on mount.
 
 	/** Current search text filter */
 	let searchQuery = $state('');
-	/** Currently selected tags for filtering */
-	let selectedTags = $state<string[]>([]);
+
+	/** Currently selected tags for filtering (session-persisted via store) */
+	const selectedTags = $derived(uiPreferencesStore.personaListTags);
+	/** Current sort value (file-persisted via store) */
+	const sortValue = $derived(uiPreferencesStore.personaListSort);
 
 	/** Unique sorted list of all tags across all personas */
 	const allTags = $derived([...new Set(personaStore.personas.flatMap((p) => p.tags))].sort());
 
 	/**
-	 * Personas filtered by search query and selected tags.
-	 * Matches personas where name contains search text (case-insensitive)
-	 * AND has at least one selected tag (if any tags selected).
+	 * Tag options with disabled state based on current selection.
+	 * A tag is disabled if selecting it would result in zero matching personas.
 	 */
-	const filteredPersonas = $derived(
-		personaStore.sortedPersonas.filter((persona) => {
+	const availableTagOptions = $derived.by(() => {
+		return allTags.map((tag) => {
+			// No selection: all tags available
+			if (selectedTags.length === 0) {
+				return { value: tag, disabled: false };
+			}
+			// Already selected: keep enabled to allow deselection
+			if (selectedTags.includes(tag)) {
+				return { value: tag, disabled: false };
+			}
+			// Check if any persona has ALL selected tags AND this tag
+			const wouldHaveResults = personaStore.personas.some((persona) => {
+				const hasAllSelected = selectedTags.every((t) => persona.tags.includes(t));
+				return hasAllSelected && persona.tags.includes(tag);
+			});
+			return { value: tag, disabled: !wouldHaveResults };
+		});
+	});
+
+	/**
+	 * Personas filtered by search query and selected tags, then sorted.
+	 * Matches personas where name contains search text (case-insensitive)
+	 * AND has ALL selected tags (if any tags selected).
+	 */
+	const filteredAndSortedPersonas = $derived.by(() => {
+		// Filter
+		const filtered = personaStore.personas.filter((persona) => {
 			const matchesSearch =
 				searchQuery.trim() === '' ||
 				persona.name.toLowerCase().includes(searchQuery.toLowerCase().trim());
 			const matchesTags =
-				selectedTags.length === 0 || selectedTags.some((tag) => persona.tags.includes(tag));
+				selectedTags.length === 0 || selectedTags.every((tag) => persona.tags.includes(tag));
 			return matchesSearch && matchesTags;
-		})
-	);
+		});
 
-	/** True if any filter is active (search or tags) */
-	const hasActiveFilters = $derived(searchQuery.trim() !== '' || selectedTags.length > 0);
+		// Sort
+		const [field, direction] = sortValue.split('-') as [string, 'asc' | 'desc'];
+		const sorted = [...filtered].sort((a, b) => {
+			let comparison = 0;
+			if (field === 'name') {
+				comparison = a.name.localeCompare(b.name);
+			} else if (field === 'created_at') {
+				comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+			} else if (field === 'updated_at') {
+				comparison = new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
+			}
+			return direction === 'desc' ? -comparison : comparison;
+		});
+
+		return sorted;
+	});
+
+	/** True if any filter is active (search, tags, or non-default sort) */
+	const hasActiveFilters = $derived(
+		searchQuery.trim() !== '' || selectedTags.length > 0 || sortValue !== 'updated_at-desc'
+	);
 
 	/** Loads all personas from the backend on mount */
 	onMount(() => {
@@ -110,21 +155,19 @@ editing, duplicating, and deleting. Loads personas from the store on mount.
 	}
 
 	/**
-	 * Toggles a tag in the selected tags filter.
-	 * @param tag - Tag to toggle
+	 * Updates the selected tags filter (session-persisted).
+	 * @param tags - New selected tags
 	 */
-	function handleTagToggle(tag: string) {
-		if (selectedTags.includes(tag)) {
-			selectedTags = selectedTags.filter((t) => t !== tag);
-		} else {
-			selectedTags = [...selectedTags, tag];
-		}
+	function handleTagsChange(tags: string[]) {
+		uiPreferencesStore.setPersonaListTags(tags);
 	}
 
-	/** Resets all filters to default state */
-	function clearFilters() {
-		searchQuery = '';
-		selectedTags = [];
+	/**
+	 * Updates the sort value (file-persisted).
+	 * @param value - New sort value
+	 */
+	function handleSortChange(value: string) {
+		uiPreferencesStore.setPersonaListSort(value);
 	}
 </script>
 
@@ -135,7 +178,8 @@ editing, duplicating, and deleting. Loads personas from the store on mount.
 			{#if personaStore.count > 0}
 				<p class="mt-1 text-sm text-base-content/60">
 					{#if hasActiveFilters}
-						{filteredPersonas.length} of {personaStore.count} persona{personaStore.count === 1
+						{filteredAndSortedPersonas.length} of {personaStore.count} persona{personaStore.count ===
+						1
 							? ''
 							: 's'}
 					{:else}
@@ -162,15 +206,16 @@ editing, duplicating, and deleting. Loads personas from the store on mount.
 		<PersonaFilterBar
 			{searchQuery}
 			{selectedTags}
-			availableTags={allTags}
+			availableTags={availableTagOptions}
+			{sortValue}
 			onSearchChange={handleSearchChange}
-			onTagToggle={handleTagToggle}
-			onClearFilters={clearFilters}
+			onTagsChange={handleTagsChange}
+			onSortChange={handleSortChange}
 		/>
 	{/if}
 
 	<PersonaList
-		personas={filteredPersonas}
+		personas={filteredAndSortedPersonas}
 		isLoading={personaStore.isLoading}
 		emptyMessage={hasActiveFilters ? 'No personas match your filters' : undefined}
 		onSelect={handleSelect}
