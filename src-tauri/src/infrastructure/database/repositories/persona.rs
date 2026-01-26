@@ -1,4 +1,14 @@
-//! Persona repository - Data access for personas
+//! Persona Repository
+//!
+//! Provides data access operations for personas and their generation parameters.
+//! All methods are stateless and take a connection reference as their first parameter.
+//!
+//! # Usage
+//!
+//! ```rust,ignore
+//! let persona = PersonaRepository::create(&conn, &request)?;
+//! let found = PersonaRepository::find_by_id(&conn, &persona.id)?;
+//! ```
 
 use chrono::Utc;
 use rusqlite::{params, Connection};
@@ -8,12 +18,18 @@ use crate::domain::persona::{
 };
 use crate::error::AppError;
 
-/// Repository for persona database operations
+/// Repository for persona database operations.
+///
+/// This struct contains no state; all methods take a connection reference
+/// and can be composed within external transactions.
 pub struct PersonaRepository;
 
 impl PersonaRepository {
-    /// Insert a new persona into the database
-    pub fn insert(conn: &Connection, persona: &Persona) -> Result<(), AppError> {
+    /// Inserts a new persona into the database (internal helper).
+    ///
+    /// Also creates default generation parameters for the persona.
+    /// Use `create()` for the public API with validation.
+    fn insert(conn: &Connection, persona: &Persona) -> Result<(), AppError> {
         let tags_json = serde_json::to_string(&persona.tags)?;
 
         conn.execute(
@@ -41,8 +57,8 @@ impl PersonaRepository {
         Ok(())
     }
 
-    /// Insert generation parameters for a persona
-    pub fn insert_generation_params(
+    /// Inserts generation parameters for a persona (internal helper).
+    fn insert_generation_params(
         conn: &Connection,
         params: &GenerationParams,
     ) -> Result<(), AppError> {
@@ -64,7 +80,17 @@ impl PersonaRepository {
         Ok(())
     }
 
-    /// Find a persona by ID
+    /// Finds a persona by its unique identifier.
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - Database connection reference
+    /// * `id` - The persona's UUID
+    ///
+    /// # Errors
+    ///
+    /// Returns `AppError::NotFound` if no persona exists with the given ID.
+    /// Returns `AppError::Database` for other database errors.
     pub fn find_by_id(conn: &Connection, id: &str) -> Result<Persona, AppError> {
         conn.query_row(
             r"
@@ -109,7 +135,17 @@ impl PersonaRepository {
         })
     }
 
-    /// Find generation parameters for a persona
+    /// Finds generation parameters for a persona.
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - Database connection reference
+    /// * `persona_id` - The parent persona's UUID
+    ///
+    /// # Errors
+    ///
+    /// Returns `AppError::NotFound` if no parameters exist for the persona.
+    /// Returns `AppError::Database` for other database errors.
     pub fn find_generation_params(
         conn: &Connection,
         persona_id: &str,
@@ -140,7 +176,15 @@ impl PersonaRepository {
         })
     }
 
-    /// Find all personas
+    /// Retrieves all personas, ordered by creation date (newest first).
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - Database connection reference
+    ///
+    /// # Errors
+    ///
+    /// Returns `AppError::Database` for database errors.
     pub fn find_all(conn: &Connection) -> Result<Vec<Persona>, AppError> {
         let mut stmt = conn.prepare(
             r"
@@ -156,7 +200,24 @@ impl PersonaRepository {
         Ok(personas)
     }
 
-    /// Update a persona
+    /// Updates a persona with the provided changes.
+    ///
+    /// Fetches the existing persona, applies the update request, and persists.
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - Database connection reference
+    /// * `id` - The persona's UUID
+    /// * `request` - The update request with optional field changes
+    ///
+    /// # Returns
+    ///
+    /// Returns the updated persona entity.
+    ///
+    /// # Errors
+    ///
+    /// Returns `AppError::NotFound` if the persona doesn't exist.
+    /// Returns `AppError::Database` for other database errors.
     pub fn update(
         conn: &Connection,
         id: &str,
@@ -192,7 +253,16 @@ impl PersonaRepository {
         Ok(persona)
     }
 
-    /// Update generation parameters for a persona
+    /// Updates generation parameters for a persona.
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - Database connection reference
+    /// * `params` - The updated generation parameters
+    ///
+    /// # Errors
+    ///
+    /// Returns `AppError::Database` if the update fails.
     pub fn update_generation_params(
         conn: &Connection,
         params: &GenerationParams,
@@ -216,7 +286,21 @@ impl PersonaRepository {
         Ok(())
     }
 
-    /// Delete a persona (cascades to tokens and generation params)
+    /// Deletes a persona and its associated data.
+    ///
+    /// Due to foreign key cascade, this also deletes:
+    /// - Associated tokens
+    /// - Associated generation parameters
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - Database connection reference
+    /// * `id` - The persona's UUID
+    ///
+    /// # Errors
+    ///
+    /// Returns `AppError::NotFound` if the persona doesn't exist.
+    /// Returns `AppError::Database` for other database errors.
     pub fn delete(conn: &Connection, id: &str) -> Result<(), AppError> {
         let rows = conn.execute("DELETE FROM personas WHERE id = ?1", [id])?;
         if rows == 0 {
@@ -227,7 +311,23 @@ impl PersonaRepository {
         Ok(())
     }
 
-    /// Check if a persona name already exists
+    /// Checks if a persona name already exists in the database.
+    ///
+    /// Useful for validating uniqueness before create or update operations.
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - Database connection reference
+    /// * `name` - The name to check
+    /// * `exclude_id` - Optional ID to exclude from the check (for updates)
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if the name exists (for a different persona), `false` otherwise.
+    ///
+    /// # Errors
+    ///
+    /// Returns `AppError::Database` for database errors.
     pub fn name_exists(
         conn: &Connection,
         name: &str,
@@ -248,7 +348,24 @@ impl PersonaRepository {
         Ok(exists)
     }
 
-    /// Create a persona from a request
+    /// Creates a new persona from a request.
+    ///
+    /// Validates name uniqueness before creation. Also creates default
+    /// generation parameters for the persona.
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - Database connection reference
+    /// * `request` - The creation request with name, description, and tags
+    ///
+    /// # Returns
+    ///
+    /// Returns the newly created persona entity.
+    ///
+    /// # Errors
+    ///
+    /// Returns `AppError::Validation` if the name already exists.
+    /// Returns `AppError::Database` for other database errors.
     pub fn create(conn: &Connection, request: &CreatePersonaRequest) -> Result<Persona, AppError> {
         // Check if name already exists
         if Self::name_exists(conn, &request.name, None)? {

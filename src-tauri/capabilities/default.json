@@ -7,6 +7,8 @@
 		"core:default",
 		"process:default",
 		"os:default",
+		"dialog:allow-open",
+		"dialog:allow-save",
 		{
 			"identifier": "opener:allow-open-url",
 			"allow": [{ "url": "https://buy.stripe.com/*" }]

@@ -1,3 +1,12 @@
+<!--
+@component
+Home Page - Landing page with quick action cards.
+
+Displays navigation cards for primary app functions: creating personas,
+viewing existing personas, composing prompts, and accessing settings.
+
+@route /
+-->
 <script lang="ts">
 	import { resolve } from '$app/paths';
 </script>

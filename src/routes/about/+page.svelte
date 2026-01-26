@@ -1,3 +1,11 @@
+<!--
+@component
+About Page - Application information and credits.
+
+Displays the app logo, name, version, description, and license information.
+
+@route /about
+-->
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { getVersion } from '@tauri-apps/api/app';

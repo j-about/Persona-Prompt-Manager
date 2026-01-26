@@ -1,3 +1,10 @@
+<!--
+@component
+DonationPopup - Modal dialog for supporting the application development.
+
+Displays donation options via Stripe links and provides options to
+return to the app or exit. Shown when donationStore.isOpen is true.
+-->
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { openUrl } from '@tauri-apps/plugin-opener';

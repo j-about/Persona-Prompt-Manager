@@ -1,129 +1,85 @@
 //! Export/Import Domain Types
 //!
-//! This module defines the data structures for persona export and import,
-//! enabling backup, sharing, and migration of persona configurations.
+//! This module defines the data structures for database export and import,
+//! enabling backup and migration of the entire application database.
 //!
 //! # Export Format
 //!
-//! The export format is a versioned JSON structure designed for:
-//! - **Compatibility**: Version field enables future format migrations
-//! - **Completeness**: Includes all data needed to fully recreate personas
-//! - **Portability**: Self-contained with no external dependencies
+//! The export format is the raw `SQLite` database file (`.db`), providing:
+//! - **Complete backup**: All personas, tokens, and settings preserved
+//! - **Integrity**: Database constraints and indexes maintained
+//! - **Simplicity**: No serialization/deserialization complexity
 //!
-//! # Supported Operations
+//! # Schema Validation
 //!
-//! - **Single Export**: One persona with all tokens and settings
-//! - **Bulk Export**: Multiple personas in a single file
-//! - **Conflict Handling**: Skip, rename, or replace existing personas
+//! Before importing, the schema version is validated to prevent importing
+//! databases from incompatible versions of the application.
 
 use serde::{Deserialize, Serialize};
 
-use super::persona::{GenerationParams, Persona};
-use super::token::{GranularityLevel, Token};
-
-/// Complete export of a single persona with all associated data.
-///
-/// This format captures everything needed to recreate the persona,
-/// including tokens, generation parameters, and granularity definitions.
+/// Result of a database export operation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PersonaExport {
-    /// Export format version for compatibility checking
-    pub version: String,
-    /// ISO 8601 timestamp when the export was created
-    pub exported_at: String,
-    /// The persona entity
-    pub persona: Persona,
-    /// Image generation parameters
-    pub generation_params: GenerationParams,
-    /// All tokens belonging to this persona
-    pub tokens: Vec<Token>,
-    /// Granularity level definitions (for validation during import)
-    pub granularity_levels: Vec<GranularityLevel>,
+pub struct ExportResult {
+    /// Whether the export completed successfully
+    pub success: bool,
+    /// Path where the file was saved (present only on success)
+    pub path: Option<String>,
+    /// Error message (present only on failure)
+    pub error: Option<String>,
 }
 
-impl PersonaExport {
-    /// Current export format version.
-    pub const CURRENT_VERSION: &'static str = "1.0";
-
-    /// Creates a new export for a persona with all its data.
+impl ExportResult {
+    /// Creates a successful export result with the destination path.
     #[must_use]
-    pub fn new(
-        persona: Persona,
-        generation_params: GenerationParams,
-        tokens: Vec<Token>,
-        granularity_levels: Vec<GranularityLevel>,
-    ) -> Self {
+    pub const fn success(path: String) -> Self {
         Self {
-            version: Self::CURRENT_VERSION.to_string(),
-            exported_at: chrono::Utc::now().to_rfc3339(),
-            persona,
-            generation_params,
-            tokens,
-            granularity_levels,
+            success: true,
+            path: Some(path),
+            error: None,
+        }
+    }
+
+    /// Creates a failed export result with an error message.
+    #[must_use]
+    pub const fn failure(error: String) -> Self {
+        Self {
+            success: false,
+            path: None,
+            error: Some(error),
+        }
+    }
+
+    /// Creates a cancelled result (user cancelled the dialog).
+    ///
+    /// This is not an error condition; `success` is false but `error` is `None`.
+    #[must_use]
+    pub const fn cancelled() -> Self {
+        Self {
+            success: false,
+            path: None,
+            error: None,
         }
     }
 }
 
-/// Bulk export containing multiple personas.
-///
-/// Used for full database backup or sharing collections of related personas.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BulkExport {
-    /// Export format version
-    pub version: String,
-    /// ISO 8601 timestamp when the export was created
-    pub exported_at: String,
-    /// Application identifier for origin tracking
-    pub app: String,
-    /// All persona exports
-    pub personas: Vec<PersonaExport>,
-}
-
-impl BulkExport {
-    /// Current bulk export format version.
-    pub const CURRENT_VERSION: &'static str = "1.0";
-    /// Application identifier included in exports.
-    pub const APP_NAME: &'static str = "Persona Prompt Manager";
-
-    /// Creates a new bulk export from a list of persona exports.
-    #[must_use]
-    pub fn new(personas: Vec<PersonaExport>) -> Self {
-        Self {
-            version: Self::CURRENT_VERSION.to_string(),
-            exported_at: chrono::Utc::now().to_rfc3339(),
-            app: Self::APP_NAME.to_string(),
-            personas,
-        }
-    }
-}
-
-/// Result of importing a single persona.
-///
-/// Provides detailed feedback about what was imported, including
-/// success/failure status, token counts, and any warnings.
+/// Result of a database import operation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImportResult {
     /// Whether the import completed successfully
     pub success: bool,
-    /// The imported persona (present only on success)
-    pub persona: Option<Persona>,
-    /// Number of tokens that were imported
-    pub tokens_imported: usize,
-    /// Non-fatal issues encountered during import
-    pub warnings: Vec<String>,
+    /// Number of personas in the imported database
+    pub personas_count: usize,
     /// Error message (present only on failure)
     pub error: Option<String>,
 }
 
 impl ImportResult {
-    /// Creates a successful import result.
+    /// Creates a successful import result with the persona count.
     #[must_use]
-    pub const fn success(persona: Persona, tokens_imported: usize, warnings: Vec<String>) -> Self {
+    pub const fn success(personas_count: usize) -> Self {
         Self {
             success: true,
-            persona: Some(persona),
-            tokens_imported,
-            warnings,
+            personas_count,
             error: None,
         }
     }
@@ -133,32 +89,8 @@ impl ImportResult {
     pub const fn failure(error: String) -> Self {
         Self {
             success: false,
-            persona: None,
-            tokens_imported: 0,
-            warnings: vec![],
+            personas_count: 0,
             error: Some(error),
         }
     }
-}
-
-/// Options controlling import behavior.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct ImportOptions {
-    /// How to handle name conflicts with existing personas
-    pub on_conflict: ImportConflictStrategy,
-    /// Whether to import granularity levels (currently ignored; levels are hardcoded)
-    pub import_granularities: bool,
-}
-
-/// Strategy for resolving name conflicts during import.
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum ImportConflictStrategy {
-    /// Skip import if a persona with the same name exists
-    #[default]
-    Skip,
-    /// Rename the imported persona by appending "(Imported N)"
-    Rename,
-    /// Delete the existing persona and import the new one
-    Replace,
 }

@@ -1,4 +1,14 @@
-//! Token repository - Data access for tokens
+//! Token Repository
+//!
+//! Provides data access operations for tokens within personas.
+//! All methods are stateless and take a connection reference as their first parameter.
+//!
+//! # Usage
+//!
+//! ```rust,ignore
+//! let token = TokenRepository::create(&conn, &request)?;
+//! let tokens = TokenRepository::find_by_persona(&conn, &persona_id)?;
+//! ```
 
 use chrono::Utc;
 use rusqlite::{params, Connection};
@@ -6,12 +16,17 @@ use rusqlite::{params, Connection};
 use crate::domain::token::{CreateTokenRequest, Token, TokenPolarity, UpdateTokenRequest};
 use crate::error::AppError;
 
-/// Repository for token database operations
+/// Repository for token database operations.
+///
+/// This struct contains no state; all methods take a connection reference
+/// and can be composed within external transactions.
 pub struct TokenRepository;
 
 impl TokenRepository {
-    /// Insert a new token into the database
-    pub fn insert(conn: &Connection, token: &Token) -> Result<(), AppError> {
+    /// Inserts a new token into the database (internal helper).
+    ///
+    /// Use `create()` or `create_batch()` for the public API.
+    fn insert(conn: &Connection, token: &Token) -> Result<(), AppError> {
         conn.execute(
             r"
             INSERT INTO tokens (id, persona_id, granularity_id, polarity, content, weight, display_order, created_at, updated_at)
@@ -32,7 +47,17 @@ impl TokenRepository {
         Ok(())
     }
 
-    /// Find a token by ID
+    /// Finds a token by its unique identifier.
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - Database connection reference
+    /// * `id` - The token's UUID
+    ///
+    /// # Errors
+    ///
+    /// Returns `AppError::NotFound` if no token exists with the given ID.
+    /// Returns `AppError::Database` for other database errors.
     pub fn find_by_id(conn: &Connection, id: &str) -> Result<Token, AppError> {
         conn.query_row(
             r"
@@ -50,7 +75,18 @@ impl TokenRepository {
         })
     }
 
-    /// Find all tokens for a persona
+    /// Retrieves all tokens for a persona.
+    ///
+    /// Results are ordered by granularity, polarity, and display order.
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - Database connection reference
+    /// * `persona_id` - The parent persona's UUID
+    ///
+    /// # Errors
+    ///
+    /// Returns `AppError::Database` for database errors.
     pub fn find_by_persona(conn: &Connection, persona_id: &str) -> Result<Vec<Token>, AppError> {
         let mut stmt = conn.prepare(
             r"
@@ -68,7 +104,24 @@ impl TokenRepository {
         Ok(tokens)
     }
 
-    /// Update a token
+    /// Updates a token with the provided changes.
+    ///
+    /// Fetches the existing token, applies the update request, and persists.
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - Database connection reference
+    /// * `id` - The token's UUID
+    /// * `request` - The update request with optional field changes
+    ///
+    /// # Returns
+    ///
+    /// Returns the updated token entity.
+    ///
+    /// # Errors
+    ///
+    /// Returns `AppError::NotFound` if the token doesn't exist.
+    /// Returns `AppError::Database` for other database errors.
     pub fn update(
         conn: &Connection,
         id: &str,
@@ -96,7 +149,17 @@ impl TokenRepository {
         Ok(token)
     }
 
-    /// Delete a token
+    /// Deletes a token from the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - Database connection reference
+    /// * `id` - The token's UUID
+    ///
+    /// # Errors
+    ///
+    /// Returns `AppError::NotFound` if the token doesn't exist.
+    /// Returns `AppError::Database` for other database errors.
     pub fn delete(conn: &Connection, id: &str) -> Result<(), AppError> {
         let rows = conn.execute("DELETE FROM tokens WHERE id = ?1", [id])?;
         if rows == 0 {
@@ -107,8 +170,8 @@ impl TokenRepository {
         Ok(())
     }
 
-    /// Get the next display order for a new token
-    pub fn get_next_display_order(
+    /// Calculates the next display order for a new token (internal helper).
+    fn get_next_display_order(
         conn: &Connection,
         persona_id: &str,
         granularity_id: &str,
@@ -128,7 +191,23 @@ impl TokenRepository {
         Ok(max_order.unwrap_or(-1) + 1)
     }
 
-    /// Create a token from a request
+    /// Creates a new token from a request.
+    ///
+    /// Automatically assigns the next display order for the token's
+    /// persona/granularity/polarity group.
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - Database connection reference
+    /// * `request` - The creation request with token details
+    ///
+    /// # Returns
+    ///
+    /// Returns the newly created token entity.
+    ///
+    /// # Errors
+    ///
+    /// Returns `AppError::Database` if the insert fails.
     pub fn create(conn: &Connection, request: &CreateTokenRequest) -> Result<Token, AppError> {
         let display_order = Self::get_next_display_order(
             conn,
@@ -151,7 +230,28 @@ impl TokenRepository {
         Ok(token)
     }
 
-    /// Create multiple tokens from comma-separated content
+    /// Creates multiple tokens in batch.
+    ///
+    /// Each token is assigned sequential display orders starting from the
+    /// next available order for the persona/granularity/polarity group.
+    /// Empty content strings are skipped.
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - Database connection reference
+    /// * `persona_id` - The parent persona's UUID
+    /// * `granularity_id` - The granularity level ID for all tokens
+    /// * `polarity` - The polarity for all tokens
+    /// * `contents` - Array of token content strings
+    /// * `weight` - The weight to apply to all created tokens
+    ///
+    /// # Returns
+    ///
+    /// Returns a vector of the newly created token entities.
+    ///
+    /// # Errors
+    ///
+    /// Returns `AppError::Database` if any insert fails.
     pub fn create_batch(
         conn: &Connection,
         persona_id: &str,

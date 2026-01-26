@@ -1,3 +1,13 @@
+<!--
+@component
+Root Layout - Main application shell with navigation sidebar.
+
+Provides the app-wide layout including sidebar navigation, version display,
+toast notifications, and donation popup. Also handles initialization of
+config store and credential store availability check on Linux.
+
+@route - All routes
+-->
 <script lang="ts">
 	import '../app.css';
 	import { onMount, onDestroy } from 'svelte';

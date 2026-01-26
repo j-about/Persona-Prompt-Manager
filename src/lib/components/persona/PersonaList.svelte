@@ -1,8 +1,24 @@
+<!--
+@component
+PersonaList - Grid display of persona cards with loading and empty states.
+
+Renders personas in a responsive grid layout. Handles loading state with
+spinner and empty state with helpful messaging.
+-->
 <script lang="ts">
 	import type { Persona } from '$lib/types';
 	import { Spinner } from '$lib/components/ui';
 	import PersonaCard from './PersonaCard.svelte';
 
+	/**
+	 * @property personas - Array of personas to display
+	 * @property isLoading - Shows loading spinner when true
+	 * @property emptyMessage - Custom message when no personas exist
+	 * @property onSelect - Callback when a persona card is clicked
+	 * @property onEdit - Callback for edit action
+	 * @property onDelete - Callback for delete action
+	 * @property onDuplicate - Callback for duplicate action
+	 */
 	interface Props {
 		personas: Persona[];
 		isLoading?: boolean;

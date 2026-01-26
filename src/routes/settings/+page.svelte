@@ -1,22 +1,28 @@
+<!--
+@component
+Settings Page - Application configuration and data management.
+
+Provides interfaces for:
+- Configuring AI provider API keys (stored in system keyring)
+- Exporting the database as a SQLite file backup
+- Importing a database file (replaces all existing data)
+
+@route /settings
+-->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { invalidateAll } from '$app/navigation';
 	import { Card, Button, ApiKeyModal } from '$lib/components/ui';
-	import { configStore, tokenStore } from '$lib/stores';
-	import {
-		exportAllPersonas,
-		downloadAsJson,
-		parseImportJson,
-		importPersonas
-	} from '$lib/services/export';
+	import { configStore } from '$lib/stores';
+	import { exportDatabase, importDatabase } from '$lib/services/export';
 	import { getApiKeyStatus, deleteApiKey, type ApiKeyStatus } from '$lib/services/settings';
-	import type { AiProvider, ImportOptions } from '$lib/types';
+	import type { AiProvider } from '$lib/types';
 
 	// State
 	let isExporting = $state(false);
 	let isImporting = $state(false);
 	let importError = $state<string | null>(null);
 	let importSuccess = $state<string | null>(null);
-	let fileInput: HTMLInputElement;
 
 	// API Key state
 	let apiKeyStatuses = $state<ApiKeyStatus[]>([]);
@@ -65,56 +71,53 @@
 
 	async function handleExportAll() {
 		isExporting = true;
+		importError = null;
+		importSuccess = null;
+
 		try {
-			const exportData = await exportAllPersonas();
-			downloadAsJson(exportData);
+			const result = await exportDatabase();
+
+			if (result.success && result.path) {
+				importSuccess = `Database exported to ${result.path}`;
+			} else if (result.error) {
+				importError = result.error;
+			}
+			// If neither success nor error, user cancelled - do nothing
 		} catch (error) {
-			console.error('Export failed:', error);
+			importError = error instanceof Error ? error.message : 'Failed to export database';
 		} finally {
 			isExporting = false;
 		}
 	}
 
-	function handleImportClick() {
-		fileInput?.click();
-	}
+	async function handleImport() {
+		// Show confirmation dialog
+		const confirmed = confirm(
+			'WARNING: Importing a database will replace ALL existing data. ' +
+				'This action cannot be undone.\n\n' +
+				'Do you want to continue?'
+		);
 
-	async function handleFileSelected(event: Event) {
-		const input = event.target as HTMLInputElement;
-		const file = input.files?.[0];
-		if (!file) return;
+		if (!confirmed) return;
 
 		isImporting = true;
 		importError = null;
 		importSuccess = null;
 
 		try {
-			const text = await file.text();
-			const exportData = await parseImportJson(text);
+			const result = await importDatabase();
 
-			const options: ImportOptions = {
-				on_conflict: 'rename',
-				import_granularities: true
-			};
-
-			const results = await importPersonas(exportData, options);
-
-			const successful = results.filter((r) => r.success).length;
-			const failed = results.filter((r) => !r.success).length;
-
-			if (failed === 0) {
-				importSuccess = `Successfully imported ${successful} persona(s)`;
-			} else {
-				importSuccess = `Imported ${successful} persona(s), ${failed} failed`;
+			if (result.success) {
+				importSuccess = `Successfully imported database with ${result.personas_count} persona(s)`;
+				// Invalidate all stores to refresh data
+				await invalidateAll();
+			} else if (result.error) {
+				importError = result.error;
 			}
-
-			// Reload granularity levels in case new ones were added
-			await tokenStore.loadGranularityLevels();
 		} catch (error) {
-			importError = error instanceof Error ? error.message : 'Failed to import file';
+			importError = error instanceof Error ? error.message : 'Failed to import database';
 		} finally {
 			isImporting = false;
-			input.value = '';
 		}
 	}
 </script>
@@ -178,7 +181,7 @@
 		<Card>
 			<h2 class="mb-4 text-xl font-semibold text-base-content">Data Management</h2>
 			<p class="mb-4 text-base-content/70">
-				Import and export your personas and tokens as JSON files.
+				Export and import your entire database as a SQLite file for backup or migration.
 			</p>
 
 			{#if importError}
@@ -195,24 +198,19 @@
 
 			<div class="flex gap-4">
 				<Button variant="secondary" onclick={handleExportAll} disabled={isExporting}>
-					{isExporting ? 'Exporting...' : 'Export All Data'}
+					{isExporting ? 'Exporting...' : 'Export Database'}
 				</Button>
-				<Button variant="secondary" onclick={handleImportClick} disabled={isImporting}>
-					{isImporting ? 'Importing...' : 'Import Data'}
+				<Button variant="secondary" onclick={handleImport} disabled={isImporting}>
+					{isImporting ? 'Importing...' : 'Import Database'}
 				</Button>
 			</div>
 
-			<input
-				type="file"
-				accept=".json"
-				class="hidden"
-				bind:this={fileInput}
-				onchange={handleFileSelected}
-			/>
-
-			<p class="mt-4 text-sm text-base-content/60">
-				Exported files include all personas, their tokens, and generation parameters.
-			</p>
+			<div class="mt-4 space-y-2">
+				<p class="text-sm text-base-content/60">
+					Export creates a complete backup of all personas, tokens, and settings.
+				</p>
+				<p class="text-sm text-warning">Warning: Import will replace ALL existing data.</p>
+			</div>
 		</Card>
 	</div>
 </div>

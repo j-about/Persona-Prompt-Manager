@@ -45,6 +45,8 @@ use infrastructure::Database;
 pub struct AppState {
     /// `SQLite` database connection wrapped in a mutex for thread-safe access.
     pub db: Mutex<Database>,
+    /// Path to the database file for import/export operations.
+    pub db_path: std::path::PathBuf,
 }
 
 /// Initializes and runs the Tauri application.
@@ -64,6 +66,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let app_data_dir = app
                 .path()
@@ -77,6 +80,7 @@ pub fn run() {
 
             app.manage(AppState {
                 db: Mutex::new(database),
+                db_path,
             });
 
             Ok(())
@@ -109,9 +113,8 @@ pub fn run() {
             commands::ai::get_ai_provider_config,
             commands::ai::get_ai_provider_metadata,
             // Export/Import commands
-            commands::export::export_all_personas,
-            commands::export::import_personas,
-            commands::export::parse_import_json,
+            commands::export::export_database,
+            commands::export::import_database,
             // Settings commands (including keyring)
             commands::settings::store_api_key,
             commands::settings::get_api_key_for_provider,

@@ -30,7 +30,48 @@ use rusqlite::Connection;
 use crate::error::AppError;
 
 /// Current schema version. Increment when adding new migrations.
-const SCHEMA_VERSION: i32 = 1;
+pub const SCHEMA_VERSION: i32 = 1;
+
+/// Returns the current schema version for this application.
+#[must_use]
+pub const fn current_schema_version() -> i32 {
+    SCHEMA_VERSION
+}
+
+/// Reads the schema version from an existing database connection.
+///
+/// Returns `None` if the `schema_version` table doesn't exist or is empty,
+/// indicating the database is not a valid Persona Prompt Manager database.
+///
+/// # Arguments
+///
+/// * `conn` - Reference to the `SQLite` connection to check
+///
+/// # Errors
+///
+/// Returns `AppError::Database` if a query fails unexpectedly.
+pub fn read_schema_version(conn: &Connection) -> Result<Option<i32>, AppError> {
+    // Check if schema_version table exists
+    let table_exists: bool = conn
+        .query_row(
+            "SELECT COUNT(*) > 0 FROM sqlite_master WHERE type='table' AND name='schema_version'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(false);
+
+    if !table_exists {
+        return Ok(None);
+    }
+
+    let version: Option<i32> = conn
+        .query_row("SELECT version FROM schema_version LIMIT 1", [], |row| {
+            row.get(0)
+        })
+        .ok();
+
+    Ok(version)
+}
 
 /// Runs all pending migrations to bring the schema up to date.
 ///

@@ -1,6 +1,21 @@
+<!--
+@component
+PersonaFilterBar - Search and tag filter controls for persona list.
+
+Provides a search input for filtering by name and clickable tag badges
+for filtering by tags. Includes a clear filters button when active.
+-->
 <script lang="ts">
 	import { Button } from '$lib/components/ui';
 
+	/**
+	 * @property searchQuery - Current search text (bindable)
+	 * @property selectedTags - Currently selected tag filters
+	 * @property availableTags - All available tags to filter by
+	 * @property onSearchChange - Callback when search text changes
+	 * @property onTagToggle - Callback when a tag is toggled
+	 * @property onClearFilters - Callback to reset all filters
+	 */
 	interface Props {
 		searchQuery: string;
 		selectedTags: string[];

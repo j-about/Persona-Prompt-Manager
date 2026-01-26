@@ -1,6 +1,23 @@
+<!--
+@component
+TokenCountBadge - Displays token usage with optional progress bar.
+
+Shows current/max token count with color-coded status:
+- Green: Within safe limits
+- Yellow: Approaching limit (>80%)
+- Red: Exceeds limit
+
+Used throughout the app to show prompt length status.
+-->
 <script lang="ts">
 	import type { TokenCount } from '$lib/types';
 
+	/**
+	 * @property tokenCount - Token count data from tokenizer
+	 * @property isLoading - Shows skeleton loader when true
+	 * @property showBar - Whether to display progress bar (default: true)
+	 * @property class - Additional CSS classes
+	 */
 	interface Props {
 		tokenCount: TokenCount | null;
 		isLoading?: boolean;

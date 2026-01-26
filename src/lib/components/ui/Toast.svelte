@@ -1,3 +1,11 @@
+<!--
+@component
+Toast - Notification display component for showing temporary messages.
+
+Renders toast notifications from the toast store in the top-right corner.
+Supports success, error, info, and warning types with appropriate styling.
+Each toast includes a dismiss button.
+-->
 <script lang="ts">
 	import { toastStore, type Toast } from '$lib/stores/toast.svelte';
 

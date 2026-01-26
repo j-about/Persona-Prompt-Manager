@@ -1,259 +1,200 @@
-//! Import/Export Commands
+//! Database Import/Export Commands
 //!
-//! This module provides Tauri IPC commands for exporting personas to JSON files
-//! and importing them back, enabling backup, sharing, and migration workflows.
+//! This module provides Tauri IPC commands for exporting and importing
+//! the entire `SQLite` database file, enabling backup and data migration.
 //!
-//! # Export Format
+//! # Export Behavior
 //!
-//! Exports use a versioned JSON format (`BulkExport`) containing:
-//! - Export metadata (version, timestamp, app identifier)
-//! - Array of `PersonaExport` objects, each containing:
-//!   - Complete persona data
-//!   - Generation parameters
-//!   - All tokens with weights and ordering
-//!   - Granularity level definitions
+//! Export performs a WAL checkpoint to ensure all data is written to the
+//! main database file, then copies it to the user-selected location.
 //!
 //! # Import Behavior
 //!
-//! Import supports three conflict resolution strategies:
-//! - **Skip**: Leave existing persona unchanged
-//! - **Rename**: Create new persona with "(Imported)" suffix
-//! - **Replace**: Delete existing persona and import the new one
+//! Import validates the schema version of the imported database, then
+//! replaces the current database file. The application database connection
+//! is reopened after import.
+//!
+//! # Schema Validation
+//!
+//! Before importing, the schema version is validated:
+//! - Missing `schema_version` table: Not a valid PPM database
+//! - Schema version > current: Incompatible future version (requires app update)
 
+use std::fs;
+use std::path::Path;
+
+use rusqlite::Connection;
 use tauri::State;
+use tauri_plugin_dialog::DialogExt;
 
-use crate::domain::export::{
-    BulkExport, ImportConflictStrategy, ImportOptions, ImportResult, PersonaExport,
-};
-use crate::domain::persona::CreatePersonaRequest;
-use crate::domain::token::{Granularity, GranularityLevel};
+use crate::domain::export::{ExportResult, ImportResult};
 use crate::error::AppError;
-use crate::infrastructure::database::repositories::{PersonaRepository, TokenRepository};
+use crate::infrastructure::database::migrations::{current_schema_version, read_schema_version};
+use crate::infrastructure::Database;
 use crate::AppState;
 
-/// Exports all personas with their complete data to a structured JSON format.
+/// Exports the database to a user-selected location.
 ///
-/// The export includes everything needed to fully recreate the personas:
-/// - Persona metadata (name, description, tags)
-/// - Generation parameters (model, seed, steps, etc.)
-/// - All tokens with their granularity, polarity, weights, and ordering
-/// - Granularity level definitions for compatibility validation
+/// Performs WAL checkpoint before export to ensure data integrity.
+/// Opens a native save dialog for the user to choose the destination.
 ///
 /// # Arguments
 ///
-/// * `state` - Application state containing the database connection
+/// * `app` - Tauri application handle for dialog access
+/// * `state` - Application state containing the database connection and path
 ///
 /// # Returns
 ///
-/// `BulkExport` containing all personas, ready for JSON serialization.
-/// The frontend handles downloading this as a file.
+/// `ExportResult` indicating success with file path, failure with error,
+/// or cancellation (success=false, error=None).
 #[tauri::command]
-pub fn export_all_personas(state: State<AppState>) -> Result<BulkExport, AppError> {
-    let db = state
-        .db
-        .lock()
-        .map_err(|_| AppError::Internal("Failed to acquire database lock".to_string()))?;
+pub async fn export_database(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<ExportResult, AppError> {
+    // Get the database and perform WAL checkpoint
+    {
+        let db = state
+            .db
+            .lock()
+            .map_err(|_| AppError::Internal("Failed to acquire database lock".to_string()))?;
 
-    let conn = db.connection();
+        let conn = db.connection();
 
-    let personas = PersonaRepository::find_all(conn)?;
-    let granularity_levels = GranularityLevel::all();
-
-    let mut exports = Vec::new();
-
-    for persona in personas {
-        let generation_params = PersonaRepository::find_generation_params(conn, &persona.id)?;
-        let tokens = TokenRepository::find_by_persona(conn, &persona.id)?;
-
-        exports.push(PersonaExport::new(
-            persona,
-            generation_params,
-            tokens,
-            granularity_levels.clone(),
-        ));
+        // Checkpoint WAL to ensure all data is in the main database file
+        conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")?;
     }
 
-    Ok(BulkExport::new(exports))
+    // Show save dialog
+    let file_path = app
+        .dialog()
+        .file()
+        .set_title("Export Database")
+        .set_file_name(format!(
+            "ppm-backup-{}.db",
+            chrono::Utc::now().format("%Y-%m-%d")
+        ))
+        .add_filter("SQLite Database", &["db"])
+        .blocking_save_file();
+
+    let Some(file_path) = file_path else {
+        return Ok(ExportResult::cancelled());
+    };
+
+    let dest_path = file_path.as_path().ok_or_else(|| {
+        AppError::Validation("Invalid file path: URL paths are not supported".to_string())
+    })?;
+
+    // Copy database file to destination
+    fs::copy(&state.db_path, dest_path)?;
+
+    Ok(ExportResult::success(dest_path.to_string_lossy().to_string()))
 }
 
-/// Imports a single persona with conflict handling.
+/// Imports a database from a user-selected file.
 ///
-/// This internal helper handles the import logic for one persona, including
-/// name conflict resolution and token validation against known granularity levels.
+/// Validates schema version before import. Rejects databases with:
+/// - No `schema_version` table (not a PPM database)
+/// - Schema version higher than current (incompatible future version)
+///
+/// Replaces the current database and reopens the connection.
 ///
 /// # Arguments
 ///
-/// * `state` - Application state containing the database connection
-/// * `export` - The persona export data to import
-/// * `options` - Import behavior settings including conflict strategy
+/// * `app` - Tauri application handle for dialog access
+/// * `state` - Application state containing the database connection and path
 ///
 /// # Returns
 ///
-/// `ImportResult` indicating success/failure with details about what was imported
-/// and any warnings encountered.
-fn import_persona(
-    state: State<AppState>,
-    export: PersonaExport,
-    options: ImportOptions,
+/// `ImportResult` indicating success with persona count, or failure with error.
+#[tauri::command]
+pub async fn import_database(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
 ) -> Result<ImportResult, AppError> {
-    let db = state
-        .db
-        .lock()
-        .map_err(|_| AppError::Internal("Failed to acquire database lock".to_string()))?;
+    // Show open dialog
+    let file_path = app
+        .dialog()
+        .file()
+        .set_title("Import Database")
+        .add_filter("SQLite Database", &["db"])
+        .blocking_pick_file();
 
-    let conn = db.connection();
-
-    let mut warnings = Vec::new();
-
-    // Handle name conflicts based on the selected strategy
-    let name_exists = PersonaRepository::name_exists(conn, &export.persona.name, None)?;
-
-    let persona_name = if name_exists {
-        match options.on_conflict {
-            ImportConflictStrategy::Skip => {
-                return Ok(ImportResult::failure(format!(
-                    "Persona '{}' already exists",
-                    export.persona.name
-                )));
-            }
-            ImportConflictStrategy::Rename => {
-                // Generate unique name with incrementing suffix
-                let mut new_name = format!("{} (Imported)", export.persona.name);
-                let mut counter = 1;
-                while PersonaRepository::name_exists(conn, &new_name, None)? {
-                    counter += 1;
-                    new_name = format!("{} (Imported {})", export.persona.name, counter);
-                }
-                warnings.push(format!(
-                    "Renamed from '{}' to '{}'",
-                    export.persona.name, new_name
-                ));
-                new_name
-            }
-            ImportConflictStrategy::Replace => {
-                // Delete existing persona before importing
-                let existing = PersonaRepository::find_all(conn)?
-                    .into_iter()
-                    .find(|p| p.name == export.persona.name);
-                if let Some(existing) = existing {
-                    PersonaRepository::delete(conn, &existing.id)?;
-                    warnings.push(format!(
-                        "Replaced existing persona '{}'",
-                        export.persona.name
-                    ));
-                }
-                export.persona.name.clone()
-            }
-        }
-    } else {
-        export.persona.name.clone()
+    let Some(file_path) = file_path else {
+        return Ok(ImportResult::failure("Import cancelled".to_string()));
     };
 
-    // Create the new persona
-    let create_request = CreatePersonaRequest {
-        name: persona_name,
-        description: export.persona.description,
-        tags: export.persona.tags,
-    };
+    let source_path = file_path.as_path().ok_or_else(|| {
+        AppError::Validation("Invalid file path: URL paths are not supported".to_string())
+    })?;
 
-    let new_persona = PersonaRepository::create(conn, &create_request)?;
+    // Validate the imported database
+    let personas_count = validate_and_count_personas(source_path)?;
 
-    // Copy generation parameters to the new persona
-    let mut params = export.generation_params.clone();
-    params.persona_id = new_persona.id.clone();
-    PersonaRepository::update_generation_params(conn, &params)?;
+    // Close current database connection and replace the file
+    {
+        let mut db = state
+            .db
+            .lock()
+            .map_err(|_| AppError::Internal("Failed to acquire database lock".to_string()))?;
 
-    // Import tokens, validating granularity levels
-    let mut tokens_imported = 0;
-    for token in &export.tokens {
-        // Only import tokens with valid granularity levels
-        if Granularity::parse(&token.granularity_id).is_some() {
-            TokenRepository::create_batch(
-                conn,
-                &new_persona.id,
-                &token.granularity_id,
-                token.polarity,
-                std::slice::from_ref(&token.content),
-                token.weight,
-            )?;
-            tokens_imported += 1;
-        } else {
-            warnings.push(format!(
-                "Skipped token '{}': unknown granularity level '{}'",
-                token.content, token.granularity_id
+        // Copy the imported database over the current one
+        fs::copy(source_path, &state.db_path)?;
+
+        // Remove any WAL/SHM files from the old database
+        let wal_path = state.db_path.with_extension("db-wal");
+        let shm_path = state.db_path.with_extension("db-shm");
+        let _ = fs::remove_file(wal_path); // Ignore errors if files don't exist
+        let _ = fs::remove_file(shm_path);
+
+        // Reopen the database connection
+        *db = Database::new(&state.db_path)?;
+    }
+
+    Ok(ImportResult::success(personas_count))
+}
+
+/// Validates an imported database file.
+///
+/// Checks:
+/// 1. File can be opened as `SQLite` database
+/// 2. `schema_version` table exists
+/// 3. Schema version is <= current application version
+/// 4. `personas` table exists
+///
+/// Returns the count of personas in the database.
+fn validate_and_count_personas(path: &Path) -> Result<usize, AppError> {
+    // Open the imported database read-only
+    let conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+
+    // Check schema version
+    let schema_version = read_schema_version(&conn)?;
+
+    match schema_version {
+        None => {
+            return Err(AppError::Validation(
+                "Invalid database: not a Persona Prompt Manager database (missing schema version)"
+                    .to_string(),
             ));
         }
-    }
-
-    Ok(ImportResult::success(
-        new_persona,
-        tokens_imported,
-        warnings,
-    ))
-}
-
-/// Imports multiple personas from a bulk export.
-///
-/// Each persona is imported independently, so failures for one persona don't
-/// affect others. The database lock is released between personas to avoid
-/// holding it for extended periods during large imports.
-///
-/// # Arguments
-///
-/// * `state` - Application state containing the database connection
-/// * `export` - The bulk export data containing multiple personas
-/// * `options` - Import behavior settings (applied to all personas)
-///
-/// # Returns
-///
-/// Vector of `ImportResult`, one per persona in the export, in the same order.
-#[tauri::command]
-pub fn import_personas(
-    state: State<AppState>,
-    export: BulkExport,
-    options: ImportOptions,
-) -> Result<Vec<ImportResult>, AppError> {
-    let mut results = Vec::new();
-
-    for persona_export in export.personas {
-        match import_persona(state.clone(), persona_export, options.clone()) {
-            Ok(result) => results.push(result),
-            Err(e) => results.push(ImportResult::failure(e.to_string())),
+        Some(version) if version > current_schema_version() => {
+            return Err(AppError::Validation(format!(
+                "Incompatible database: schema version {} is newer than supported version {}. \
+                Please update the application.",
+                version,
+                current_schema_version()
+            )));
         }
+        Some(_) => {} // Valid version
     }
 
-    Ok(results)
-}
+    // Count personas
+    let count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM personas", [], |row| row.get(0))
+        .map_err(|_| {
+            AppError::Validation("Invalid database: personas table not found".to_string())
+        })?;
 
-/// Parses JSON input into a `BulkExport` for import.
-///
-/// Accepts either:
-/// - A `BulkExport` JSON object (multiple personas)
-/// - A single `PersonaExport` JSON object (automatically wrapped)
-///
-/// This flexibility allows users to import from both full backups and
-/// individual persona exports.
-///
-/// # Arguments
-///
-/// * `json` - JSON string to parse
-///
-/// # Returns
-///
-/// `BulkExport` ready for import, or error if JSON is invalid.
-#[tauri::command]
-pub fn parse_import_json(json: String) -> Result<BulkExport, AppError> {
-    // Try bulk export format first
-    if let Ok(bulk) = serde_json::from_str::<BulkExport>(&json) {
-        return Ok(bulk);
-    }
-
-    // Try single persona export and wrap it
-    if let Ok(single) = serde_json::from_str::<PersonaExport>(&json) {
-        return Ok(BulkExport::new(vec![single]));
-    }
-
-    Err(AppError::Validation(
-        "Invalid import format. Expected PersonaExport or BulkExport JSON.".to_string(),
-    ))
+    // Safe conversion: COUNT(*) is always non-negative
+    Ok(usize::try_from(count).unwrap_or(0))
 }

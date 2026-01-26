@@ -3,22 +3,11 @@
  */
 
 import { tauriInvoke } from './tauri';
-import type {
-	Token,
-	CreateTokenRequest,
-	BatchCreateTokenRequest,
-	UpdateTokenRequest,
-	GranularityLevel
-} from '$lib/types';
+import type { Token, CreateTokenRequest, UpdateTokenRequest, GranularityLevel } from '$lib/types';
 
 /** Create a new token */
 export async function createToken(request: CreateTokenRequest): Promise<Token> {
 	return tauriInvoke<Token>('create_token', { request });
-}
-
-/** Create multiple tokens at once (from comma-separated input) */
-export async function createTokensBatch(request: BatchCreateTokenRequest): Promise<Token[]> {
-	return tauriInvoke<Token[]>('create_tokens_batch', { request });
 }
 
 /** Get all tokens for a persona */

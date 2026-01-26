@@ -38,7 +38,7 @@ pub mod token;
 pub use ai::{
     AiProvider, AiProviderConfig, GeneratedToken, TokenGenerationRequest, TokenGenerationResponse,
 };
-pub use export::{BulkExport, ImportConflictStrategy, ImportOptions, ImportResult, PersonaExport};
+pub use export::{ExportResult, ImportResult};
 pub use persona::{CreatePersonaRequest, GenerationParams, Persona, UpdatePersonaRequest};
 pub use prompt::{ComposedPrompt, CompositionOptions, PromptComposer};
 pub use token::{

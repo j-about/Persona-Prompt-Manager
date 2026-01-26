@@ -1,3 +1,13 @@
+<!--
+@component
+PhysicalCriteriaForm - Form for specifying detailed physical characteristics.
+
+Provides categorized dropdowns for selecting physical attributes including
+general body characteristics, hair, face structure, and body regions.
+Used within AiPersonaForm to guide AI generation.
+
+@property criteria - Bindable object containing selected physical criteria
+-->
 <script lang="ts">
 	import { Card } from '$lib/components/ui';
 	import type { PhysicalCriteria } from '$lib/types';

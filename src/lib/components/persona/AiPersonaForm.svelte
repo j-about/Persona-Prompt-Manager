@@ -1,3 +1,14 @@
+<!--
+@component
+AiPersonaForm - AI-assisted persona creation form.
+
+Guides users through creating a persona with AI assistance. Collects character
+information, visual style preferences, and optional physical criteria, then
+uses an AI provider to generate description and tokens.
+
+@property onCreated - Callback with new persona ID on successful creation
+@property onCancel - Callback when cancel is clicked
+-->
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Card, Button, ApiKeyModal } from '$lib/components/ui';

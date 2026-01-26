@@ -1,3 +1,17 @@
+<!--
+@component
+PersonaForm - Form for creating and editing persona details.
+
+Handles both create and edit modes with fields for name, description, tags,
+AI provider configuration, and image generation settings. Edit mode includes
+additional sections for generation parameters and token management.
+
+@property persona - Existing persona to edit (null for create mode)
+@property isLoading - Disables form submission when true
+@property onSubmit - Callback with form data on submission
+@property onCancel - Callback when cancel is clicked
+@property tokenSection - Optional slot for token management component
+-->
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { Persona, CreatePersonaRequest, UpdatePersonaRequest } from '$lib/types';

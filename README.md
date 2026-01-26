@@ -44,7 +44,7 @@
 
 - **Secure API Key Storage** — API keys are stored securely using OS-native credential storage (macOS Keychain, Windows Credential Manager, Linux Secret Service).
 
-- **Import/Export** — Backup and restore all personas and tokens in JSON format for sharing or migration.
+- **Import/Export** — Backup and restore your entire database as a SQLite file for migration or safekeeping, with schema version validation to ensure compatibility.
 
 - **Cross-Platform** — Native desktop application for Windows, macOS, and Linux built with Tauri.
 
@@ -139,16 +139,19 @@ Production builds are output to `src-tauri/target/release/bundle/`.
 
 ### Available Scripts
 
-| Command               | Description                                   |
-| --------------------- | --------------------------------------------- |
-| `npm run dev`         | Start Vite development server (frontend only) |
-| `npm run build`       | Build frontend for production                 |
-| `npm run check`       | Type-check Svelte components                  |
-| `npm run lint`        | Run ESLint                                    |
-| `npm run format`      | Format code with Prettier                     |
-| `npm run validate`    | Run all checks (format:check + lint + check)  |
-| `npm run tauri dev`   | Start full Tauri development application      |
-| `npm run tauri build` | Build production desktop application          |
+| Command                | Description                                   |
+| ---------------------- | --------------------------------------------- |
+| `npm run dev`          | Start Vite development server (frontend only) |
+| `npm run build`        | Build frontend for production                 |
+| `npm run check`        | Type-check Svelte components                  |
+| `npm run check:watch`  | Type-check in watch mode                      |
+| `npm run lint`         | Run ESLint                                    |
+| `npm run lint:fix`     | Auto-fix ESLint issues                        |
+| `npm run format`       | Format code with Prettier                     |
+| `npm run format:check` | Check Prettier formatting                     |
+| `npm run validate`     | Run all checks (format:check + lint + check)  |
+| `npm run tauri dev`    | Start full Tauri development application      |
+| `npm run tauri build`  | Build production desktop application          |
 
 ### Project Structure
 
@@ -195,7 +198,19 @@ Persona-Prompt-Manager/
 │   │   │   ├── token.ts        # Token CRUD service
 │   │   │   └── tokenizer.ts    # Token counting service
 │   │   ├── stores/             # Svelte 5 reactive stores
+│   │   │   ├── config.svelte.ts    # App configuration state
+│   │   │   ├── donation.svelte.ts  # Donation popup state
+│   │   │   ├── persona.svelte.ts   # Persona state management
+│   │   │   ├── toast.svelte.ts     # Toast notifications
+│   │   │   └── token.svelte.ts     # Token state management
 │   │   └── types/              # TypeScript type definitions
+│   │       ├── ai.ts               # AI provider types
+│   │       ├── common.ts           # Shared utilities
+│   │       ├── export.ts           # Export/import types
+│   │       ├── persona.ts          # Persona definitions
+│   │       ├── prompt.ts           # Prompt composition types
+│   │       ├── token.ts            # Token definitions
+│   │       └── tokenizer.ts        # Tokenizer types
 │   └── routes/                 # SvelteKit pages
 │       ├── +layout.svelte      # Root layout with navigation
 │       ├── +layout.ts          # SSR configuration
@@ -295,8 +310,10 @@ The Rust backend follows clean architecture principles with clear separation of 
 
 ### Import/Export
 
-- **Export**: Settings → Export All Personas → Downloads a JSON file
-- **Import**: Settings → Import Personas → Select JSON file → Choose conflict resolution strategy
+- **Export**: Settings → Export Database → Select destination → Saves a `.db` SQLite file
+- **Import**: Settings → Import Database → Select `.db` file → Replaces all existing data
+
+> **Note**: Import validates the database schema version to ensure compatibility. Databases from newer application versions cannot be imported into older versions.
 
 ---
 
