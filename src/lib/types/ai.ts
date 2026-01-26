@@ -43,15 +43,6 @@ export interface GeneratedToken {
 	rationale?: string | null;
 }
 
-/** Status of an AI provider */
-export interface AiProviderStatus {
-	provider: AiProvider;
-	configured: boolean;
-	has_api_key: boolean;
-	model?: string | null;
-	error?: string | null;
-}
-
 /** Request to generate tokens for a persona */
 export interface TokenGenerationRequest {
 	/** The persona name (for context) */

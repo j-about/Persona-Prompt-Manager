@@ -2,8 +2,6 @@
  * Prompt composition types - TypeScript equivalents of Rust domain types
  */
 
-import type { UUID } from './common';
-
 /** Position for ad-hoc tokens in the composed prompt */
 export type AdhocPosition = 'beginning' | 'end';
 
@@ -43,10 +41,4 @@ export interface CompositionOptions {
 	adhoc_negative?: string | null;
 	/** Where to place ad-hoc tokens */
 	adhoc_position?: AdhocPosition;
-}
-
-/** Request to compose a prompt from a persona */
-export interface ComposePromptRequest {
-	persona_id: UUID;
-	options?: CompositionOptions;
 }

@@ -179,21 +179,6 @@ impl AiProviderConfig {
     }
 }
 
-/// Runtime status of an AI provider configuration.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AiProviderStatus {
-    /// The provider this status describes
-    pub provider: AiProvider,
-    /// Whether the provider is fully configured
-    pub configured: bool,
-    /// Whether an API key is stored in the keyring
-    pub has_api_key: bool,
-    /// Currently selected model (if configured)
-    pub model: Option<String>,
-    /// Error message if configuration check failed
-    pub error: Option<String>,
-}
-
 // ============================================================================
 // Shared Types
 // ============================================================================

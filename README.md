@@ -40,7 +40,7 @@
 
 - **Multi-Model Tokenization** — Accurate CLIP and T5 token counting for popular image generation models including Stable Diffusion XL, PixArt, Hunyuan, and DeepFloyd IF.
 
-- **AI-Powered Generation** — Generate contextual token suggestions using multiple AI providers: OpenAI, Anthropic, Google, xAI, or Ollama (local).
+- **AI-Powered Generation** — Generate contextual token suggestions and complete persona profiles using multiple AI providers: OpenAI, Anthropic, Google, xAI, or Ollama (local). Includes physical criteria forms for detailed character specification.
 
 - **Secure API Key Storage** — API keys are stored securely using OS-native credential storage (macOS Keychain, Windows Credential Manager, Linux Secret Service).
 
@@ -139,16 +139,16 @@ Production builds are output to `src-tauri/target/release/bundle/`.
 
 ### Available Scripts
 
-| Command               | Description                              |
-| --------------------- | ---------------------------------------- |
-| `npm run dev`         | Start Vite development server (frontend) |
-| `npm run build`       | Build frontend for production            |
-| `npm run check`       | Type-check Svelte components             |
-| `npm run lint`        | Run ESLint                               |
-| `npm run format`      | Format code with Prettier                |
-| `npm run validate`    | Run all checks (lint + check + format)   |
-| `npm run tauri dev`   | Start full Tauri development application |
-| `npm run tauri build` | Build production desktop application     |
+| Command               | Description                                   |
+| --------------------- | --------------------------------------------- |
+| `npm run dev`         | Start Vite development server (frontend only) |
+| `npm run build`       | Build frontend for production                 |
+| `npm run check`       | Type-check Svelte components                  |
+| `npm run lint`        | Run ESLint                                    |
+| `npm run format`      | Format code with Prettier                     |
+| `npm run validate`    | Run all checks (format:check + lint + check)  |
+| `npm run tauri dev`   | Start full Tauri development application      |
+| `npm run tauri build` | Build production desktop application          |
 
 ### Project Structure
 
@@ -159,16 +159,51 @@ Persona-Prompt-Manager/
 │   ├── app.html                # HTML template
 │   ├── lib/
 │   │   ├── components/         # Reusable UI components
-│   │   │   ├── persona/        # Persona-specific components
-│   │   │   ├── token/          # Token management components
+│   │   │   ├── persona/        # Persona management (cards, forms, filters)
+│   │   │   │   ├── AiPersonaForm.svelte
+│   │   │   │   ├── PersonaCard.svelte
+│   │   │   │   ├── PersonaFilterBar.svelte
+│   │   │   │   ├── PersonaForm.svelte
+│   │   │   │   ├── PersonaList.svelte
+│   │   │   │   └── PhysicalCriteriaForm.svelte
+│   │   │   ├── token/          # Token management (cards, modals, sections)
+│   │   │   │   ├── TokenCard.svelte
+│   │   │   │   ├── TokenEditModal.svelte
+│   │   │   │   ├── TokenInput.svelte
+│   │   │   │   ├── TokenManager.svelte
+│   │   │   │   └── TokenSection.svelte
 │   │   │   └── ui/             # Generic UI primitives
+│   │   │       ├── ApiKeyModal.svelte
+│   │   │       ├── Badge.svelte
+│   │   │       ├── Button.svelte
+│   │   │       ├── Card.svelte
+│   │   │       ├── ConfirmDialog.svelte
+│   │   │       ├── DonationPopup.svelte
+│   │   │       ├── Modal.svelte
+│   │   │       ├── Spinner.svelte
+│   │   │       ├── Tag.svelte
+│   │   │       ├── Toast.svelte
+│   │   │       └── TokenCountBadge.svelte
 │   │   ├── services/           # Tauri IPC service layer
+│   │   │   ├── ai.ts           # AI generation service
+│   │   │   ├── config.ts       # Configuration service
+│   │   │   ├── export.ts       # Import/export service
+│   │   │   ├── persona.ts      # Persona CRUD service
+│   │   │   ├── prompt.ts       # Prompt composition service
+│   │   │   ├── settings.ts     # Settings & credentials
+│   │   │   ├── tauri.ts        # Tauri IPC base handler
+│   │   │   ├── token.ts        # Token CRUD service
+│   │   │   └── tokenizer.ts    # Token counting service
 │   │   ├── stores/             # Svelte 5 reactive stores
 │   │   └── types/              # TypeScript type definitions
 │   └── routes/                 # SvelteKit pages
 │       ├── +layout.svelte      # Root layout with navigation
+│       ├── +layout.ts          # SSR configuration
 │       ├── +page.svelte        # Dashboard
 │       ├── personas/           # Persona CRUD pages
+│       │   ├── +page.svelte    # Personas list
+│       │   ├── new/            # Create persona
+│       │   └── [id]/           # Edit persona (dynamic route)
 │       ├── compose/            # Prompt composition
 │       ├── settings/           # Configuration
 │       └── about/              # About page
@@ -177,6 +212,10 @@ Persona-Prompt-Manager/
 │   │   ├── commands/           # Tauri IPC command handlers
 │   │   ├── domain/             # Business logic & entities
 │   │   ├── infrastructure/     # Database, AI, keyring adapters
+│   │   │   ├── ai.rs           # AI provider integrations
+│   │   │   ├── database/       # SQLite repository layer
+│   │   │   ├── keyring/        # OS-native credential storage
+│   │   │   └── tokenizer.rs    # HuggingFace tokenizer
 │   │   ├── error/              # Error handling
 │   │   ├── lib.rs              # Library entry point
 │   │   └── main.rs             # Application entry point

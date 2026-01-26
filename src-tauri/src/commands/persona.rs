@@ -7,7 +7,6 @@
 //! # Operations
 //!
 //! - **CRUD**: Create, read, update, and delete personas
-//! - **Search**: Find personas by name or description
 //! - **Duplication**: Clone personas with automatic name deduplication
 //! - **Generation Params**: Configure image generation settings per persona
 
@@ -95,28 +94,6 @@ pub fn list_personas(state: State<AppState>) -> Result<Vec<Persona>, AppError> {
         .map_err(|_| AppError::Internal("Failed to acquire database lock".to_string()))?;
 
     PersonaRepository::find_all(db.connection())
-}
-
-/// Searches personas by matching the query against name and description fields.
-///
-/// Uses SQL LIKE with wildcards for case-insensitive partial matching.
-///
-/// # Arguments
-///
-/// * `state` - Application state containing the database connection
-/// * `query` - Search term to match against name and description
-///
-/// # Returns
-///
-/// Vector of matching personas, ordered by creation date (newest first).
-#[tauri::command]
-pub fn search_personas(state: State<AppState>, query: String) -> Result<Vec<Persona>, AppError> {
-    let db = state
-        .db
-        .lock()
-        .map_err(|_| AppError::Internal("Failed to acquire database lock".to_string()))?;
-
-    PersonaRepository::search(db.connection(), &query)
 }
 
 /// Updates an existing persona with the provided field values.

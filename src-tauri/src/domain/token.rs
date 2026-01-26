@@ -61,7 +61,7 @@ impl TokenPolarity {
     }
 }
 
-/// Enumeration of the six granularity levels for token organization.
+/// Enumeration of the seven granularity levels for token organization.
 ///
 /// These levels represent a hierarchical breakdown of character attributes,
 /// enabling selective prompt composition where users can choose which

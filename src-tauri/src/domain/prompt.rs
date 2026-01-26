@@ -111,16 +111,6 @@ pub enum AdhocPosition {
     End,
 }
 
-/// Request payload for prompt composition via IPC.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ComposePromptRequest {
-    /// Target persona UUID
-    pub persona_id: String,
-    /// Composition options
-    #[serde(default)]
-    pub options: CompositionOptions,
-}
-
 impl Default for CompositionOptions {
     fn default() -> Self {
         Self {

@@ -36,11 +36,6 @@ export async function deleteToken(id: string): Promise<void> {
 	return tauriInvoke<void>('delete_token', { id });
 }
 
-/** Reorder tokens by providing new order */
-export async function reorderTokens(tokenIds: string[]): Promise<void> {
-	return tauriInvoke<void>('reorder_tokens', { tokenIds });
-}
-
 /** Get all granularity levels */
 export async function getGranularityLevels(): Promise<GranularityLevel[]> {
 	return tauriInvoke<GranularityLevel[]>('get_all_granularity_levels');

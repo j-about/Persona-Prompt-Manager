@@ -4,15 +4,12 @@
  * Manages tokens for the currently selected persona, organized by granularity level.
  */
 
-import { SvelteMap } from 'svelte/reactivity';
 import * as tokenService from '$lib/services/token';
 import type {
 	Token,
 	GranularityLevel,
-	CreateTokenRequest,
 	BatchCreateTokenRequest,
 	UpdateTokenRequest,
-	TokenPolarity,
 	TokenDraftState
 } from '$lib/types';
 
@@ -23,7 +20,6 @@ function createTokenStore() {
 	let granularityLevels = $state<GranularityLevel[]>([]);
 	let currentPersonaId = $state<string | null>(null);
 	let isLoading = $state(false);
-	let error = $state<string | null>(null);
 
 	// Draft mode state for edit sessions
 	let draftState = $state<TokenDraftState | null>(null);
@@ -33,41 +29,10 @@ function createTokenStore() {
 		return `temp_${crypto.randomUUID()}`;
 	}
 
-	// Derived: tokens grouped by granularity and polarity
-	const tokensByGranularity = $derived(() => {
-		const grouped = new SvelteMap<string, { positive: Token[]; negative: Token[] }>();
-
-		// Initialize with all granularity levels
-		for (const level of granularityLevels) {
-			grouped.set(level.id, { positive: [], negative: [] });
-		}
-
-		// Sort tokens by display order and group
-		const sortedTokens = [...tokens].sort((a, b) => a.display_order - b.display_order);
-
-		for (const token of sortedTokens) {
-			const group = grouped.get(token.granularity_id);
-			if (group) {
-				if (token.polarity === 'positive') {
-					group.positive.push(token);
-				} else {
-					group.negative.push(token);
-				}
-			}
-		}
-
-		return grouped;
-	});
-
 	// Derived: sorted granularity levels
 	const sortedGranularityLevels = $derived(
 		[...granularityLevels].sort((a, b) => a.display_order - b.display_order)
 	);
-
-	// Derived: token counts
-	const positiveCount = $derived(tokens.filter((t) => t.polarity === 'positive').length);
-	const negativeCount = $derived(tokens.filter((t) => t.polarity === 'negative').length);
-	const totalCount = $derived(tokens.length);
 
 	// Actions
 	async function loadGranularityLevels(): Promise<void> {
@@ -85,7 +50,6 @@ function createTokenStore() {
 		}
 
 		isLoading = true;
-		error = null;
 		currentPersonaId = personaId;
 
 		try {
@@ -98,129 +62,10 @@ function createTokenStore() {
 			granularityLevels = levels;
 			tokens = personaTokens;
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to load tokens';
 			console.error('Failed to load tokens:', err);
 		} finally {
 			isLoading = false;
 		}
-	}
-
-	async function createToken(request: CreateTokenRequest): Promise<Token | null> {
-		isLoading = true;
-		error = null;
-
-		try {
-			const newToken = await tokenService.createToken(request);
-			tokens = [...tokens, newToken];
-			return newToken;
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to create token';
-			console.error('Failed to create token:', err);
-			return null;
-		} finally {
-			isLoading = false;
-		}
-	}
-
-	async function createTokensBatch(request: BatchCreateTokenRequest): Promise<Token[]> {
-		isLoading = true;
-		error = null;
-
-		try {
-			const newTokens = await tokenService.createTokensBatch(request);
-			tokens = [...tokens, ...newTokens];
-			return newTokens;
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to create tokens';
-			console.error('Failed to create tokens:', err);
-			return [];
-		} finally {
-			isLoading = false;
-		}
-	}
-
-	async function updateToken(id: string, request: UpdateTokenRequest): Promise<Token | null> {
-		isLoading = true;
-		error = null;
-
-		try {
-			const updatedToken = await tokenService.updateToken(id, request);
-			tokens = tokens.map((t) => (t.id === id ? updatedToken : t));
-			return updatedToken;
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to update token';
-			console.error('Failed to update token:', err);
-			return null;
-		} finally {
-			isLoading = false;
-		}
-	}
-
-	async function deleteToken(id: string): Promise<boolean> {
-		isLoading = true;
-		error = null;
-
-		try {
-			await tokenService.deleteToken(id);
-			tokens = tokens.filter((t) => t.id !== id);
-			return true;
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to delete token';
-			console.error('Failed to delete token:', err);
-			return false;
-		} finally {
-			isLoading = false;
-		}
-	}
-
-	async function reorderTokens(tokenIds: string[]): Promise<boolean> {
-		// Optimistically update the local state
-		const originalTokens = [...tokens];
-		const reorderedTokens = tokenIds
-			.map((id, index) => {
-				const token = tokens.find((t) => t.id === id);
-				if (token) {
-					return { ...token, display_order: index };
-				}
-				return null;
-			})
-			.filter((t): t is Token => t !== null);
-
-		// Update tokens that were reordered
-		tokens = tokens.map((t) => {
-			const reordered = reorderedTokens.find((rt) => rt.id === t.id);
-			return reordered || t;
-		});
-
-		try {
-			await tokenService.reorderTokens(tokenIds);
-			return true;
-		} catch (err) {
-			// Revert on error
-			tokens = originalTokens;
-			error = err instanceof Error ? err.message : 'Failed to reorder tokens';
-			console.error('Failed to reorder tokens:', err);
-			return false;
-		}
-	}
-
-	function getTokensForGranularity(granularityId: string, polarity?: TokenPolarity): Token[] {
-		return tokens
-			.filter(
-				(t) =>
-					t.granularity_id === granularityId && (polarity === undefined || t.polarity === polarity)
-			)
-			.sort((a, b) => a.display_order - b.display_order);
-	}
-
-	function clearError(): void {
-		error = null;
-	}
-
-	function reset(): void {
-		tokens = [];
-		currentPersonaId = null;
-		error = null;
 	}
 
 	// ==================== Draft Mode Methods ====================
@@ -387,7 +232,6 @@ function createTokenStore() {
 		if (!draftState) return true;
 
 		isLoading = true;
-		error = null;
 
 		try {
 			const operations = draftState.pendingOperations;
@@ -432,7 +276,6 @@ function createTokenStore() {
 
 			return true;
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to save token changes';
 			console.error('Failed to commit draft:', err);
 			return false;
 		} finally {
@@ -459,34 +302,8 @@ function createTokenStore() {
 		get granularityLevels() {
 			return sortedGranularityLevels;
 		},
-		get tokensByGranularity() {
-			return tokensByGranularity;
-		},
-		get currentPersonaId() {
-			return currentPersonaId;
-		},
 		get isLoading() {
 			return isLoading;
-		},
-		get error() {
-			return error;
-		},
-		get positiveCount() {
-			return positiveCount;
-		},
-		get negativeCount() {
-			return negativeCount;
-		},
-		get totalCount() {
-			return totalCount;
-		},
-
-		// Draft mode state
-		get isDraftMode() {
-			return draftState !== null;
-		},
-		get hasPendingChanges() {
-			return draftState !== null && draftState.pendingOperations.length > 0;
 		},
 		get draftTokens() {
 			return draftState ? draftState.draftTokens : tokens;
@@ -495,14 +312,6 @@ function createTokenStore() {
 		// Actions
 		loadGranularityLevels,
 		loadTokensForPersona,
-		createToken,
-		createTokensBatch,
-		updateToken,
-		deleteToken,
-		reorderTokens,
-		getTokensForGranularity,
-		clearError,
-		reset,
 
 		// Draft mode actions
 		startDraft,

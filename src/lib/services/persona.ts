@@ -25,11 +25,6 @@ export async function listPersonas(): Promise<Persona[]> {
 	return tauriInvoke<Persona[]>('list_personas');
 }
 
-/** Search personas by name or description */
-export async function searchPersonas(query: string): Promise<Persona[]> {
-	return tauriInvoke<Persona[]>('search_personas', { query });
-}
-
 /** Update a persona */
 export async function updatePersona(id: string, request: UpdatePersonaRequest): Promise<Persona> {
 	return tauriInvoke<Persona>('update_persona', { id, request });

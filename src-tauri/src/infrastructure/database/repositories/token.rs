@@ -128,17 +128,6 @@ impl TokenRepository {
         Ok(max_order.unwrap_or(-1) + 1)
     }
 
-    /// Reorder tokens by updating their `display_order`
-    pub fn reorder(conn: &Connection, token_ids: &[String]) -> Result<(), AppError> {
-        for (index, id) in token_ids.iter().enumerate() {
-            conn.execute(
-                "UPDATE tokens SET display_order = ?1, updated_at = ?2 WHERE id = ?3",
-                params![index as i32, Utc::now().to_rfc3339(), id],
-            )?;
-        }
-        Ok(())
-    }
-
     /// Create a token from a request
     pub fn create(conn: &Connection, request: &CreateTokenRequest) -> Result<Token, AppError> {
         let display_order = Self::get_next_display_order(

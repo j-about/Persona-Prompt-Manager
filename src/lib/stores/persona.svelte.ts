@@ -55,22 +55,6 @@ function createPersonaStore() {
 		}
 	}
 
-	async function search(query: string): Promise<Persona[]> {
-		isLoading = true;
-		error = null;
-		try {
-			const results = await personaService.searchPersonas(query);
-			personas = results;
-			return results;
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to search personas';
-			console.error('Failed to search personas:', err);
-			return [];
-		} finally {
-			isLoading = false;
-		}
-	}
-
 	async function create(request: CreatePersonaRequest): Promise<Persona | null> {
 		isLoading = true;
 		error = null;
@@ -142,10 +126,6 @@ function createPersonaStore() {
 		}
 	}
 
-	function select(persona: Persona | null): void {
-		selectedPersona = persona;
-	}
-
 	function clearError(): void {
 		error = null;
 	}
@@ -174,12 +154,10 @@ function createPersonaStore() {
 		// Actions
 		loadAll,
 		loadById,
-		search,
 		create,
 		update,
 		remove,
 		duplicate,
-		select,
 		clearError
 	};
 }

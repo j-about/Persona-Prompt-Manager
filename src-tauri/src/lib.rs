@@ -86,7 +86,6 @@ pub fn run() {
             commands::persona::create_persona,
             commands::persona::get_persona_by_id,
             commands::persona::list_personas,
-            commands::persona::search_personas,
             commands::persona::update_persona,
             commands::persona::delete_persona,
             commands::persona::get_persona_generation_params,
@@ -98,7 +97,6 @@ pub fn run() {
             commands::token::get_tokens_by_persona,
             commands::token::update_token,
             commands::token::delete_token,
-            commands::token::reorder_tokens,
             commands::token::get_all_granularity_levels,
             // Prompt commands
             commands::prompt::compose_prompt,

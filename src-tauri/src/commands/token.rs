@@ -166,30 +166,6 @@ pub fn delete_token(state: State<AppState>, id: String) -> Result<(), AppError> 
     TokenRepository::delete(db.connection(), &id)
 }
 
-/// Reorders tokens by setting their `display_order` based on array position.
-///
-/// This enables drag-and-drop reordering in the UI. The token at index 0
-/// gets `display_order` 0, index 1 gets `display_order` 1, etc.
-///
-/// # Arguments
-///
-/// * `state` - Application state containing the database connection
-/// * `token_ids` - Array of token UUIDs in the desired order
-///
-/// # Note
-///
-/// Only tokens in the provided array are reordered. This typically represents
-/// tokens within a single granularity/polarity group.
-#[tauri::command]
-pub fn reorder_tokens(state: State<AppState>, token_ids: Vec<String>) -> Result<(), AppError> {
-    let db = state
-        .db
-        .lock()
-        .map_err(|_| AppError::Internal("Failed to acquire database lock".to_string()))?;
-
-    TokenRepository::reorder(db.connection(), &token_ids)
-}
-
 /// Returns all available granularity levels.
 ///
 /// Granularity levels are hardcoded constants representing the hierarchical

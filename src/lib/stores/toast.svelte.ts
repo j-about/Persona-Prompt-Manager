@@ -34,33 +34,13 @@ function createToastStore() {
 		return show(message, 'success', duration);
 	}
 
-	function error(message: string, duration = 7000): string {
-		return show(message, 'error', duration);
-	}
-
-	function info(message: string, duration = 5000): string {
-		return show(message, 'info', duration);
-	}
-
-	function warning(message: string, duration = 6000): string {
-		return show(message, 'warning', duration);
-	}
-
-	function clear(): void {
-		toasts = [];
-	}
-
 	return {
 		get toasts() {
 			return toasts;
 		},
 		show,
 		dismiss,
-		success,
-		error,
-		info,
-		warning,
-		clear
+		success
 	};
 }
 

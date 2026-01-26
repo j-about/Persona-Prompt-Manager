@@ -36,12 +36,11 @@ pub mod token;
 
 // Re-export commonly used types for ergonomic imports
 pub use ai::{
-    AiProvider, AiProviderConfig, AiProviderStatus, GeneratedToken, TokenGenerationRequest,
-    TokenGenerationResponse,
+    AiProvider, AiProviderConfig, GeneratedToken, TokenGenerationRequest, TokenGenerationResponse,
 };
 pub use export::{BulkExport, ImportConflictStrategy, ImportOptions, ImportResult, PersonaExport};
 pub use persona::{CreatePersonaRequest, GenerationParams, Persona, UpdatePersonaRequest};
-pub use prompt::{ComposePromptRequest, ComposedPrompt, CompositionOptions, PromptComposer};
+pub use prompt::{ComposedPrompt, CompositionOptions, PromptComposer};
 pub use token::{
     BatchCreateTokenRequest, CreateTokenRequest, Granularity, GranularityLevel, Token,
     TokenPolarity, UpdateTokenRequest,

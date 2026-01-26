@@ -156,25 +156,6 @@ impl PersonaRepository {
         Ok(personas)
     }
 
-    /// Search personas by name or description
-    pub fn search(conn: &Connection, query: &str) -> Result<Vec<Persona>, AppError> {
-        let search_term = format!("%{query}%");
-        let mut stmt = conn.prepare(
-            r"
-            SELECT id, name, description, tags, ai_provider_id, ai_model_id, ai_instructions, created_at, updated_at
-            FROM personas
-            WHERE name LIKE ?1 OR description LIKE ?1
-            ORDER BY created_at DESC
-            ",
-        )?;
-
-        let personas = stmt
-            .query_map([&search_term], Self::row_to_persona)?
-            .collect::<Result<Vec<_>, _>>()?;
-
-        Ok(personas)
-    }
-
     /// Update a persona
     pub fn update(
         conn: &Connection,
