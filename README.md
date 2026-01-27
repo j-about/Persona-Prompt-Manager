@@ -34,7 +34,7 @@
 
 - **Persona Management** — Create and organize fictional character profiles with custom tags for easy categorization and retrieval.
 
-- **Token Organization** — Structure prompt elements hierarchically across 7 granularity levels (Style, General, Hair, Face, Upper Body, Midsection, Lower Body) with positive/negative polarity support.
+- **Token Organization** — Structure prompt elements hierarchically across 7 color-coded granularity levels (Style, General, Hair, Face, Upper Body, Midsection, Lower Body) with positive/negative polarity support and drag-and-drop reordering.
 
 - **Prompt Composition** — Assemble complete prompts by selectively combining tokens from different granularity levels, with support for ad-hoc additions and weight modifiers.
 
@@ -169,12 +169,12 @@ Persona-Prompt-Manager/
 │   │   │   │   ├── PersonaForm.svelte
 │   │   │   │   ├── PersonaList.svelte
 │   │   │   │   └── PhysicalCriteriaForm.svelte
-│   │   │   ├── token/          # Token management (cards, modals, sections)
+│   │   │   ├── token/          # Token management (cards, modals, drag-and-drop)
 │   │   │   │   ├── TokenCard.svelte
 │   │   │   │   ├── TokenEditModal.svelte
 │   │   │   │   ├── TokenInput.svelte
-│   │   │   │   ├── TokenManager.svelte
-│   │   │   │   └── TokenSection.svelte
+│   │   │   │   ├── TokenLegend.svelte
+│   │   │   │   └── TokenManager.svelte
 │   │   │   └── ui/             # Generic UI primitives
 │   │   │       ├── ApiKeyModal.svelte
 │   │   │       ├── Badge.svelte
@@ -183,6 +183,7 @@ Persona-Prompt-Manager/
 │   │   │       ├── ConfirmDialog.svelte
 │   │   │       ├── DonationPopup.svelte
 │   │   │       ├── Modal.svelte
+│   │   │       ├── MultiSelect.svelte
 │   │   │       ├── Spinner.svelte
 │   │   │       ├── Tag.svelte
 │   │   │       ├── Toast.svelte
@@ -348,6 +349,7 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 - [SvelteKit](https://kit.svelte.dev/) — Frontend framework
 - [Svelte 5](https://svelte.dev/) — Reactive UI library
 - [DaisyUI](https://daisyui.com/) — Tailwind CSS component library
+- [svelte-dnd-action](https://github.com/isaacHagworthy/svelte-dnd-action) — Drag-and-drop for Svelte
 - [Tailwind CSS](https://tailwindcss.com/) — Utility-first CSS framework
 - [HuggingFace Tokenizers](https://github.com/huggingface/tokenizers) — Fast tokenization library
 - [genai](https://github.com/jeremychone/rust-genai) — Multi-provider AI integration for Rust

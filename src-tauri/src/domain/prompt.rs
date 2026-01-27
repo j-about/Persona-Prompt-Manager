@@ -9,7 +9,7 @@
 //! The `PromptComposer` processes tokens through these stages:
 //!
 //! 1. **Granularity Selection**: Filter to specified levels or use all
-//! 2. **Ordering**: Sort levels by `display_order`, tokens within levels
+//! 2. **Ordering**: Sort by global `display_order` (user-defined sequence)
 //! 3. **Polarity Separation**: Route tokens to positive or negative output
 //! 4. **Weight Formatting**: Apply `(token:weight)` syntax if enabled
 //! 5. **Ad-hoc Injection**: Insert additional tokens at beginning or end
@@ -61,9 +61,11 @@ pub struct GranularitySection {
     pub granularity_id: String,
     /// Human-readable level name
     pub granularity_name: String,
-    /// Positive token contents (without weight formatting)
+    /// DaisyUI color name for styling (e.g., "primary", "accent")
+    pub granularity_color: String,
+    /// Positive token contents (with weight formatting if enabled)
     pub positive_tokens: Vec<String>,
-    /// Negative token contents (without weight formatting)
+    /// Negative token contents (with weight formatting if enabled)
     pub negative_tokens: Vec<String>,
 }
 
@@ -140,36 +142,53 @@ impl PromptComposer {
     ///
     /// # Algorithm
     ///
-    /// 1. Determine which granularity levels to include
-    /// 2. Optionally inject ad-hoc tokens at the beginning
-    /// 3. For each granularity level (in order):
-    ///    - Sort tokens by `display_order`
-    ///    - Format each token (apply weight if configured)
+    /// 1. Filter tokens by selected granularity levels (or use all)
+    /// 2. Sort tokens by global `display_order` (user-defined sequence)
+    /// 3. Optionally inject ad-hoc tokens at the beginning
+    /// 4. Process each token in order:
+    ///    - Format token (apply weight if configured)
     ///    - Add to positive or negative parts based on polarity
-    /// 4. Optionally inject ad-hoc tokens at the end
-    /// 5. Join parts with separator
+    ///    - Track breakdown by granularity for UI display
+    /// 5. Optionally inject ad-hoc tokens at the end
+    /// 6. Join parts with separator
     #[must_use]
     pub fn compose(
         tokens: &[Token],
         granularity_levels: &[GranularityLevel],
         options: &CompositionOptions,
     ) -> ComposedPrompt {
+        use std::collections::HashMap;
+
         let mut positive_parts: Vec<String> = Vec::new();
         let mut negative_parts: Vec<String> = Vec::new();
-        let mut sections: Vec<GranularitySection> = Vec::new();
 
-        // Determine which granularities to include and their order
-        let granularities_to_use: Vec<&GranularityLevel> = if options.granularity_ids.is_empty() {
-            let mut levels: Vec<_> = granularity_levels.iter().collect();
-            levels.sort_by_key(|l| l.display_order);
-            levels
-        } else {
-            options
-                .granularity_ids
-                .iter()
-                .filter_map(|id| granularity_levels.iter().find(|l| &l.id == id))
-                .collect()
-        };
+        // Determine which granularities to include
+        let allowed_granularities: Option<std::collections::HashSet<&str>> =
+            if options.granularity_ids.is_empty() {
+                None // All granularities allowed
+            } else {
+                Some(
+                    options
+                        .granularity_ids
+                        .iter()
+                        .map(|s| s.as_str())
+                        .collect(),
+                )
+            };
+
+        // Filter and sort tokens by global display_order
+        let mut sorted_tokens: Vec<&Token> = tokens
+            .iter()
+            .filter(|t| {
+                allowed_granularities
+                    .as_ref()
+                    .map_or(true, |allowed| allowed.contains(t.granularity_id.as_str()))
+            })
+            .collect();
+        sorted_tokens.sort_by_key(|t| t.display_order);
+
+        // Track breakdown by granularity (for informational purposes)
+        let mut section_map: HashMap<String, GranularitySection> = HashMap::new();
 
         // Inject ad-hoc tokens at beginning if configured
         if options.adhoc_position == AdhocPosition::Beginning {
@@ -185,46 +204,40 @@ impl PromptComposer {
             }
         }
 
-        // Process each granularity level
-        for level in &granularities_to_use {
-            let level_tokens: Vec<&Token> = tokens
-                .iter()
-                .filter(|t| t.granularity_id == level.id)
-                .collect();
+        // Process tokens in user-defined order
+        for token in sorted_tokens {
+            let formatted = token.format_for_prompt(options.include_weights);
 
-            if level_tokens.is_empty() {
-                continue;
-            }
-
-            let mut section_positive: Vec<String> = Vec::new();
-            let mut section_negative: Vec<String> = Vec::new();
-
-            // Sort tokens by display order within the level
-            let mut sorted_tokens = level_tokens.clone();
-            sorted_tokens.sort_by_key(|t| t.display_order);
-
-            for token in sorted_tokens {
-                let formatted = token.format_for_prompt(options.include_weights);
-
-                match token.polarity {
-                    TokenPolarity::Positive => {
-                        positive_parts.push(formatted.clone());
-                        section_positive.push(token.content.clone());
-                    }
-                    TokenPolarity::Negative => {
-                        negative_parts.push(formatted.clone());
-                        section_negative.push(token.content.clone());
-                    }
+            match token.polarity {
+                TokenPolarity::Positive => {
+                    positive_parts.push(formatted.clone());
+                }
+                TokenPolarity::Negative => {
+                    negative_parts.push(formatted.clone());
                 }
             }
 
-            if !section_positive.is_empty() || !section_negative.is_empty() {
-                sections.push(GranularitySection {
-                    granularity_id: level.id.clone(),
-                    granularity_name: level.name.clone(),
-                    positive_tokens: section_positive,
-                    negative_tokens: section_negative,
+            // Track breakdown by granularity
+            let section = section_map
+                .entry(token.granularity_id.clone())
+                .or_insert_with(|| {
+                    let level = granularity_levels
+                        .iter()
+                        .find(|l| l.id == token.granularity_id);
+                    GranularitySection {
+                        granularity_id: token.granularity_id.clone(),
+                        granularity_name: level
+                            .map_or_else(|| "Unknown".to_string(), |l| l.name.clone()),
+                        granularity_color: level
+                            .map_or_else(|| "base".to_string(), |l| l.color.clone()),
+                        positive_tokens: Vec::new(),
+                        negative_tokens: Vec::new(),
+                    }
                 });
+
+            match token.polarity {
+                TokenPolarity::Positive => section.positive_tokens.push(formatted.clone()),
+                TokenPolarity::Negative => section.negative_tokens.push(formatted.clone()),
             }
         }
 
@@ -241,6 +254,14 @@ impl PromptComposer {
                 }
             }
         }
+
+        // Convert section_map to ordered vector (by granularity display_order for breakdown)
+        let mut sections: Vec<GranularitySection> = granularity_levels
+            .iter()
+            .filter_map(|l| section_map.remove(&l.id))
+            .collect();
+        // Add any remaining sections (unknown granularities) at the end
+        sections.extend(section_map.into_values());
 
         ComposedPrompt {
             positive_prompt: positive_parts.join(&options.separator),

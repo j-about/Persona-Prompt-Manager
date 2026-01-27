@@ -41,6 +41,8 @@ export interface GeneratedToken {
 	suggested_weight: number;
 	/** Brief explanation of why this token was suggested */
 	rationale?: string | null;
+	/** Granularity category (only set for persona generation, not ad-hoc token generation) */
+	granularity_id?: string | null;
 }
 
 /** Request to generate tokens for a persona */
@@ -235,24 +237,6 @@ export interface AiPersonaGenerationRequest {
 	skipAiDescription?: boolean;
 }
 
-/** Generated tokens organized by granularity level */
-export interface GeneratedTokensByGranularity {
-	/** Style tokens */
-	style: GeneratedToken[];
-	/** General physical trait tokens */
-	general: GeneratedToken[];
-	/** Hair-related tokens */
-	hair: GeneratedToken[];
-	/** Face-related tokens */
-	face: GeneratedToken[];
-	/** Upper body tokens */
-	upper_body: GeneratedToken[];
-	/** Midsection tokens */
-	midsection: GeneratedToken[];
-	/** Lower body tokens */
-	lower_body: GeneratedToken[];
-}
-
 /** Response from AI persona generation */
 export interface AiPersonaGenerationResponse {
 	/** Elaborated persona description (empty if using user's original) */
@@ -261,8 +245,8 @@ export interface AiPersonaGenerationResponse {
 	aiInstructions?: string | null;
 	/** Inferred tags from style and character description */
 	tags: string[];
-	/** Generated tokens organized by granularity */
-	tokens: GeneratedTokensByGranularity;
+	/** Generated tokens in AI-recommended optimal order. Each token includes granularity_id for categorization. */
+	tokens: GeneratedToken[];
 	/** Provider that handled the request */
 	provider: AiProvider;
 	/** Model used for generation */

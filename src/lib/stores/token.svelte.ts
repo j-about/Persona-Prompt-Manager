@@ -10,7 +10,8 @@ import type {
 	GranularityLevel,
 	BatchCreateTokenRequest,
 	UpdateTokenRequest,
-	TokenDraftState
+	TokenDraftState,
+	TokenOrderUpdate
 } from '$lib/types';
 
 /** Create a reactive token store */
@@ -226,6 +227,29 @@ function createTokenStore() {
 	}
 
 	/**
+	 * Reorder tokens in draft state (from drag-and-drop)
+	 */
+	function draftReorderTokens(orders: TokenOrderUpdate[]): void {
+		if (!draftState) return;
+
+		// Remove any existing reorder operation (only keep latest)
+		draftState.pendingOperations = draftState.pendingOperations.filter(
+			(op) => op.type !== 'reorder'
+		);
+
+		// Add new reorder operation
+		draftState.pendingOperations = [...draftState.pendingOperations, { type: 'reorder', orders }];
+
+		// Update draft tokens with new order
+		draftState.draftTokens = draftState.draftTokens
+			.map((token) => {
+				const newOrder = orders.find((o) => o.token_id === token.id);
+				return newOrder ? { ...token, display_order: newOrder.display_order } : token;
+			})
+			.sort((a, b) => a.display_order - b.display_order);
+	}
+
+	/**
 	 * Commit all draft changes to backend
 	 */
 	async function commitDraft(): Promise<boolean> {
@@ -262,6 +286,19 @@ function createTokenStore() {
 						polarity: op.data.polarity,
 						content: op.data.content,
 						weight: op.data.weight
+					});
+				}
+			}
+
+			// 4. Process reorder (filter out temp IDs - they have new IDs now)
+			const reorderOp = operations.find((op) => op.type === 'reorder');
+			if (reorderOp && reorderOp.type === 'reorder' && currentPersonaId) {
+				// Only include orders for non-temp tokens (temp tokens have new IDs after create)
+				const validOrders = reorderOp.orders.filter((o) => !o.token_id.startsWith('temp_'));
+				if (validOrders.length > 0) {
+					await tokenService.reorderTokens({
+						persona_id: currentPersonaId,
+						token_orders: validOrders
 					});
 				}
 			}
@@ -318,6 +355,7 @@ function createTokenStore() {
 		draftCreateTokensBatch,
 		draftUpdateToken,
 		draftDeleteToken,
+		draftReorderTokens,
 		commitDraft,
 		discardDraft
 	};

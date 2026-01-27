@@ -28,7 +28,8 @@ Draft Mode Flow:
 		UpdatePersonaRequest,
 		UpdateTokenRequest,
 		TokenPolarity,
-		GenerationParams
+		GenerationParams,
+		TokenOrderUpdate
 	} from '$lib/types';
 
 	/** Whether the page is in edit mode */
@@ -205,6 +206,15 @@ Draft Mode Flow:
 	async function handleDeleteToken(id: string): Promise<void> {
 		tokenStore.draftDeleteToken(id);
 	}
+
+	/**
+	 * Stages token reordering in draft mode.
+	 * Called after drag-and-drop operations.
+	 * @param orders - New display_order values for each token
+	 */
+	function handleReorderTokens(orders: TokenOrderUpdate[]): void {
+		tokenStore.draftReorderTokens(orders);
+	}
 </script>
 
 <div>
@@ -249,9 +259,11 @@ Draft Mode Flow:
 					granularityLevels={tokenStore.granularityLevels}
 					isLoading={tokenStore.isLoading}
 					isReadOnly={false}
+					modelId={generationParams?.model_id}
 					onCreateToken={handleCreateToken}
 					onUpdateToken={handleUpdateToken}
 					onDeleteToken={handleDeleteToken}
+					onReorderTokens={handleReorderTokens}
 				/>
 			{/snippet}
 		</PersonaForm>
@@ -337,6 +349,7 @@ Draft Mode Flow:
 				granularityLevels={tokenStore.granularityLevels}
 				isLoading={tokenStore.isLoading}
 				isReadOnly={true}
+				modelId={generationParams?.model_id}
 			/>
 
 			<!-- AI Token Generation Card (only if configured) -->
@@ -360,7 +373,7 @@ Draft Mode Flow:
 							<div>
 								<dt class="mb-1 font-medium text-base-content/60">Custom Instructions</dt>
 								<dd
-									class="rounded-lg bg-base-200 p-3 text-sm whitespace-pre-wrap text-base-content select-text"
+									class="bg-base-200 p-3 text-sm whitespace-pre-wrap text-base-content select-text"
 								>
 									{persona.ai_instructions}
 								</dd>

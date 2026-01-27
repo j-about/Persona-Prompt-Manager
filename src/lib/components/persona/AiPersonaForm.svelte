@@ -19,12 +19,7 @@ uses an AI provider to generate description and tokens.
 	import { createPersona, updatePersona, updateGenerationParams } from '$lib/services/persona';
 	import { createToken } from '$lib/services/token';
 	import PhysicalCriteriaForm from './PhysicalCriteriaForm.svelte';
-	import type {
-		AiPersonaGenerationRequest,
-		AiProviderConfig,
-		PhysicalCriteria,
-		GeneratedTokensByGranularity
-	} from '$lib/types';
+	import type { AiPersonaGenerationRequest, AiProviderConfig, PhysicalCriteria } from '$lib/types';
 
 	interface Props {
 		onCreated: (personaId: string) => void;
@@ -285,31 +280,15 @@ uses an AI provider to generate description and tokens.
 				scheduler: null
 			});
 
-			// 6. Create tokens for each granularity
-			const granularityMap: Record<keyof GeneratedTokensByGranularity, string> = {
-				style: 'style',
-				general: 'general',
-				hair: 'hair',
-				face: 'face',
-				upper_body: 'upper_body',
-				midsection: 'midsection',
-				lower_body: 'lower_body'
-			};
-
-			for (const [key, granularityId] of Object.entries(granularityMap)) {
-				const tokens = aiResponse.tokens[key as keyof GeneratedTokensByGranularity];
-				if (tokens && tokens.length > 0) {
-					// Create each token individually to preserve AI-suggested weights
-					for (const token of tokens) {
-						await createToken({
-							persona_id: persona.id,
-							granularity_id: granularityId,
-							polarity: 'positive',
-							content: token.content,
-							weight: token.suggested_weight
-						});
-					}
-				}
+			// 6. Create tokens in AI-recommended optimal order
+			for (const token of aiResponse.tokens) {
+				await createToken({
+					persona_id: persona.id,
+					granularity_id: token.granularity_id!, // Always present for persona generation
+					polarity: 'positive',
+					content: token.content,
+					weight: token.suggested_weight
+				});
 			}
 
 			// 7. Success - navigate to the new persona

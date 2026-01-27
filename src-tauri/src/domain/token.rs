@@ -156,18 +156,34 @@ impl Granularity {
             Self::LowerBody,
         ]
     }
+
+    /// Returns the DaisyUI color name for this granularity level.
+    #[must_use]
+    pub const fn color(&self) -> &'static str {
+        match self {
+            Self::Style => "neutral",
+            Self::General => "secondary",
+            Self::Hair => "accent",
+            Self::Face => "info",
+            Self::UpperBody => "success",
+            Self::Midsection => "primary",
+            Self::LowerBody => "error",
+        }
+    }
 }
 
 /// Serializable granularity level for frontend communication.
 ///
 /// This struct converts the `Granularity` enum into a frontend-friendly format
-/// with explicit `id`, `name`, and `display_order` fields.
+/// with explicit `id`, `name`, `color`, and `display_order` fields.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GranularityLevel {
     /// Unique identifier (matches `Granularity::as_str()`)
     pub id: String,
     /// Human-readable display name
     pub name: String,
+    /// DaisyUI color name for styling (e.g., "primary", "secondary")
+    pub color: String,
     /// Sort order for UI presentation
     pub display_order: i32,
     /// Whether this is a built-in level (always true currently)
@@ -201,7 +217,7 @@ pub struct Token {
     pub content: String,
     /// Weight modifier (1.0 = normal, >1 = more emphasis, <1 = less)
     pub weight: f64,
-    /// Sort order within granularity/polarity group
+    /// Global sort order within persona (determines prompt token sequence)
     pub display_order: i32,
     /// Creation timestamp
     pub created_at: DateTime<Utc>,
@@ -263,11 +279,34 @@ pub struct UpdateTokenRequest {
     pub polarity: Option<TokenPolarity>,
 }
 
+/// Request payload for reordering tokens within a persona.
+///
+/// Accepts a batch of token ID to display_order mappings and updates
+/// all positions atomically. The frontend computes the complete new
+/// ordering after drag-and-drop operations.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReorderTokensRequest {
+    /// Parent persona UUID - used to validate token ownership
+    pub persona_id: String,
+    /// Token ID to display_order mappings
+    pub token_orders: Vec<TokenOrderUpdate>,
+}
+
+/// Single token ordering update within a reorder request.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenOrderUpdate {
+    /// Token UUID
+    pub token_id: String,
+    /// New global display order position
+    pub display_order: i32,
+}
+
 impl From<Granularity> for GranularityLevel {
     fn from(g: Granularity) -> Self {
         Self {
             id: g.as_str().to_string(),
             name: g.display_name().to_string(),
+            color: g.color().to_string(),
             display_order: g.display_order(),
             is_default: true,
             created_at: Utc::now(),

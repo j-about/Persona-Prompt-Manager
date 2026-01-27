@@ -2,28 +2,40 @@
 @component
 TokenManager - Orchestrates token CRUD operations within a persona context.
 
-Groups tokens by granularity level (Style, General, Hair, Face, etc.) and
-polarity (positive/negative). Provides interfaces for adding, editing, and
-deleting tokens through child components.
+Displays all tokens in a flat list ordered by user-defined display_order.
+Supports drag-and-drop reordering when in edit mode. Shows a color-coded
+legend to identify granularity levels.
 -->
 <script lang="ts">
-	import { SvelteMap } from 'svelte/reactivity';
-	import type { Token, GranularityLevel, TokenPolarity, UpdateTokenRequest } from '$lib/types';
-	import { Card, ConfirmDialog } from '$lib/components/ui';
+	import { flip } from 'svelte/animate';
+	import { dndzone } from 'svelte-dnd-action';
+	import type {
+		Token,
+		GranularityLevel,
+		TokenPolarity,
+		UpdateTokenRequest,
+		TokenOrderUpdate,
+		TokenCount
+	} from '$lib/types';
+	import { Card, ConfirmDialog, TokenCountBadge } from '$lib/components/ui';
+	import { countTokens } from '$lib/services/tokenizer';
 	import TokenInput from './TokenInput.svelte';
-	import TokenSection from './TokenSection.svelte';
+	import TokenCard from './TokenCard.svelte';
+	import TokenLegend from './TokenLegend.svelte';
 	import TokenEditModal from './TokenEditModal.svelte';
 
 	/**
 	 * Component props for TokenManager.
 	 * @property personaId - The ID of the persona owning these tokens
 	 * @property tokens - Array of tokens to display and manage
-	 * @property granularityLevels - Available granularity categories for grouping
+	 * @property granularityLevels - Available granularity categories for labeling
 	 * @property isLoading - Disables interactions during async operations
 	 * @property isReadOnly - Hides editing controls when true
 	 * @property onCreateToken - Callback for creating new tokens
 	 * @property onUpdateToken - Callback for updating existing tokens
 	 * @property onDeleteToken - Callback for deleting tokens
+	 * @property onReorderTokens - Callback for reordering tokens via drag-and-drop
+	 * @property modelId - Optional model ID for tokenizer selection
 	 */
 	interface Props {
 		personaId: string;
@@ -31,6 +43,7 @@ deleting tokens through child components.
 		granularityLevels: GranularityLevel[];
 		isLoading?: boolean;
 		isReadOnly?: boolean;
+		modelId?: string;
 		onCreateToken?: (data: {
 			personaId: string;
 			granularityId: string;
@@ -40,6 +53,7 @@ deleting tokens through child components.
 		}) => Promise<void>;
 		onUpdateToken?: (id: string, data: UpdateTokenRequest) => Promise<void>;
 		onDeleteToken?: (id: string) => Promise<void>;
+		onReorderTokens?: (orders: TokenOrderUpdate[]) => void;
 	}
 
 	let {
@@ -48,9 +62,11 @@ deleting tokens through child components.
 		granularityLevels,
 		isLoading = false,
 		isReadOnly = false,
+		modelId,
 		onCreateToken,
 		onUpdateToken,
-		onDeleteToken
+		onDeleteToken,
+		onReorderTokens
 	}: Props = $props();
 
 	/** Token currently being edited in the modal, null if no edit in progress */
@@ -59,39 +75,88 @@ deleting tokens through child components.
 	let showDeleteConfirm = $state(false);
 	/** Token pending deletion confirmation */
 	let tokenToDelete = $state<Token | null>(null);
+	/** Whether to include token weights in counting (view mode only) */
+	let includeWeights = $state(true);
+
+	/** Animation duration for drag-and-drop flip effect */
+	const flipDurationMs = 200;
 
 	/**
-	 * Groups tokens by granularity level and polarity.
-	 * Creates a map where each granularity ID maps to positive/negative token arrays,
-	 * sorted by display_order for consistent rendering.
+	 * Positive tokens sorted by display_order.
 	 */
-	const tokensByGranularity = $derived(() => {
-		const grouped = new SvelteMap<string, { positive: Token[]; negative: Token[] }>();
+	const positiveTokens = $derived(
+		tokens
+			.filter((t) => t.polarity === 'positive')
+			.sort((a, b) => a.display_order - b.display_order)
+	);
 
-		for (const level of granularityLevels) {
-			grouped.set(level.id, { positive: [], negative: [] });
-		}
+	/**
+	 * Negative tokens sorted by display_order.
+	 */
+	const negativeTokens = $derived(
+		tokens
+			.filter((t) => t.polarity === 'negative')
+			.sort((a, b) => a.display_order - b.display_order)
+	);
 
-		const sortedTokens = [...tokens].sort((a, b) => a.display_order - b.display_order);
+	/**
+	 * Mutable items arrays for drag-and-drop.
+	 * Separate arrays for each polarity to prevent mixing.
+	 * We use $state + $effect instead of $derived because svelte-dnd-action
+	 * requires direct mutation of the arrays during drag operations.
+	 */
+	// eslint-disable-next-line svelte/prefer-writable-derived -- svelte-dnd-action requires mutable array
+	let dndPositiveItems = $state<Token[]>([]);
+	// eslint-disable-next-line svelte/prefer-writable-derived -- svelte-dnd-action requires mutable array
+	let dndNegativeItems = $state<Token[]>([]);
 
-		for (const token of sortedTokens) {
-			const group = grouped.get(token.granularity_id);
-			if (group) {
-				if (token.polarity === 'positive') {
-					group.positive.push(token);
-				} else {
-					group.negative.push(token);
-				}
-			}
-		}
+	// Sync dndPositiveItems when positiveTokens changes
+	$effect(() => {
+		dndPositiveItems = [...positiveTokens];
+	});
 
-		return grouped;
+	// Sync dndNegativeItems when negativeTokens changes
+	$effect(() => {
+		dndNegativeItems = [...negativeTokens];
 	});
 
 	/** Count of positive polarity tokens */
-	const positiveCount = $derived(tokens.filter((t) => t.polarity === 'positive').length);
+	const positiveCount = $derived(positiveTokens.length);
 	/** Count of negative polarity tokens */
-	const negativeCount = $derived(tokens.filter((t) => t.polarity === 'negative').length);
+	const negativeCount = $derived(negativeTokens.length);
+
+	/** Tokenizer count for positive prompt */
+	let positiveTokenCount = $state<TokenCount | null>(null);
+	/** Tokenizer count for negative prompt */
+	let negativeTokenCount = $state<TokenCount | null>(null);
+	/** Token counting in progress */
+	let isCountingTokens = $state(false);
+
+	/**
+	 * Formats tokens as comma-separated prompt string with optional weights.
+	 * Matches the format used in prompt composition.
+	 */
+	function formatTokensForCounting(tokenList: Token[]): string {
+		return tokenList
+			.map((t) => (includeWeights && t.weight !== 1.0 ? `(${t.content}:${t.weight})` : t.content))
+			.join(', ');
+	}
+
+	// Reactively count tokens when tokens, modelId, or includeWeights change
+	$effect(() => {
+		const positiveText = formatTokensForCounting(positiveTokens);
+		const negativeText = formatTokensForCounting(negativeTokens);
+
+		isCountingTokens = true;
+		Promise.all([countTokens(positiveText, modelId), countTokens(negativeText, modelId)])
+			.then(([pos, neg]) => {
+				positiveTokenCount = pos;
+				negativeTokenCount = neg;
+			})
+			.finally(() => {
+				isCountingTokens = false;
+			});
+	});
 
 	/**
 	 * Handles batch token creation from TokenInput.
@@ -148,16 +213,55 @@ deleting tokens through child components.
 			tokenToDelete = null;
 		}
 	}
+
+	/**
+	 * Handles drag-and-drop consider events for positive tokens.
+	 */
+	function handlePositiveDndConsider(e: CustomEvent<{ items: Token[] }>) {
+		dndPositiveItems = e.detail.items;
+	}
+
+	/**
+	 * Handles drag-and-drop finalize events for positive tokens.
+	 */
+	function handlePositiveDndFinalize(e: CustomEvent<{ items: Token[] }>) {
+		dndPositiveItems = e.detail.items;
+
+		// Compute new display_order for positive tokens based on position
+		const orders: TokenOrderUpdate[] = dndPositiveItems.map((token, index) => ({
+			token_id: token.id,
+			display_order: index
+		}));
+
+		onReorderTokens?.(orders);
+	}
+
+	/**
+	 * Handles drag-and-drop consider events for negative tokens.
+	 */
+	function handleNegativeDndConsider(e: CustomEvent<{ items: Token[] }>) {
+		dndNegativeItems = e.detail.items;
+	}
+
+	/**
+	 * Handles drag-and-drop finalize events for negative tokens.
+	 */
+	function handleNegativeDndFinalize(e: CustomEvent<{ items: Token[] }>) {
+		dndNegativeItems = e.detail.items;
+
+		// Compute new display_order for negative tokens based on position
+		const orders: TokenOrderUpdate[] = dndNegativeItems.map((token, index) => ({
+			token_id: token.id,
+			display_order: index
+		}));
+
+		onReorderTokens?.(orders);
+	}
 </script>
 
 <Card>
-	<div class="mb-4 flex items-center justify-between">
+	<div class="mb-4">
 		<h2 class="text-lg font-semibold text-base-content">Tokens</h2>
-		<div class="text-sm text-base-content/60">
-			<span class="text-success">+{positiveCount}</span>
-			<span class="mx-1">/</span>
-			<span class="text-error">-{negativeCount}</span>
-		</div>
 	</div>
 
 	{#if !isReadOnly}
@@ -171,19 +275,131 @@ deleting tokens through child components.
 			Unable to load granularity levels. Please restart the application.
 		</p>
 	{:else}
-		<div class="space-y-4">
-			{#each granularityLevels as level (level.id)}
-				{@const group = tokensByGranularity().get(level.id)}
-				<TokenSection
-					granularity={level}
-					positiveTokens={group?.positive ?? []}
-					negativeTokens={group?.negative ?? []}
-					{isReadOnly}
-					onEditToken={handleEditToken}
-					onDeleteToken={handleDeleteToken}
-				/>
-			{/each}
+		<!-- Granularity color legend -->
+		<div class="mb-4">
+			<TokenLegend {granularityLevels} />
 		</div>
+
+		{#if isReadOnly}
+			<div class="mb-4">
+				<label class="label cursor-pointer justify-start gap-2">
+					<input
+						type="checkbox"
+						class="checkbox checkbox-sm checkbox-warning"
+						bind:checked={includeWeights}
+					/>
+					<span class="text-sm text-base-content">Include token weights</span>
+				</label>
+			</div>
+		{/if}
+
+		{#if tokens.length === 0}
+			<p class="py-8 text-center text-base-content/60">
+				{isReadOnly
+					? 'No tokens defined for this persona.'
+					: 'No tokens yet. Use the form above to add tokens.'}
+			</p>
+		{:else}
+			<div class="space-y-6">
+				<!-- Positive Tokens Section -->
+				<div>
+					<div class="mb-2 flex items-center gap-2">
+						<span class="inline-block h-2 w-2 rounded-full bg-success"></span>
+						<h3 class="text-sm font-medium text-base-content">Positive</h3>
+						{#if isReadOnly}
+							<TokenCountBadge tokenCount={positiveTokenCount} isLoading={isCountingTokens} />
+						{/if}
+					</div>
+					{#if isReadOnly}
+						<div
+							class="flex min-h-[40px] flex-wrap gap-2 border border-dashed border-success/30 p-2"
+						>
+							{#if positiveCount === 0}
+								<p class="w-full py-2 text-center text-sm text-base-content/50">
+									No positive tokens
+								</p>
+							{:else}
+								{#each positiveTokens as token (token.id)}
+									<TokenCard {token} {granularityLevels} {isReadOnly} />
+								{/each}
+							{/if}
+						</div>
+					{:else}
+						<div
+							class="flex min-h-[40px] flex-wrap gap-2 border border-dashed border-success/30 p-2"
+							use:dndzone={{ items: dndPositiveItems, flipDurationMs, dragDisabled: isLoading }}
+							onconsider={handlePositiveDndConsider}
+							onfinalize={handlePositiveDndFinalize}
+						>
+							{#if positiveCount === 0}
+								<p class="w-full py-2 text-center text-sm text-base-content/50">
+									No positive tokens
+								</p>
+							{/if}
+							{#each dndPositiveItems as token (token.id)}
+								<div animate:flip={{ duration: flipDurationMs }}>
+									<TokenCard
+										{token}
+										{granularityLevels}
+										{isReadOnly}
+										onEdit={handleEditToken}
+										onDelete={handleDeleteToken}
+									/>
+								</div>
+							{/each}
+						</div>
+					{/if}
+				</div>
+
+				<!-- Negative Tokens Section -->
+				<div>
+					<div class="mb-2 flex items-center gap-2">
+						<span class="inline-block h-2 w-2 rounded-full bg-error"></span>
+						<h3 class="text-sm font-medium text-base-content">Negative</h3>
+						{#if isReadOnly}
+							<TokenCountBadge tokenCount={negativeTokenCount} isLoading={isCountingTokens} />
+						{/if}
+					</div>
+					{#if isReadOnly}
+						<div class="flex min-h-[40px] flex-wrap gap-2 border border-dashed border-error/30 p-2">
+							{#if negativeCount === 0}
+								<p class="w-full py-2 text-center text-sm text-base-content/50">
+									No negative tokens
+								</p>
+							{:else}
+								{#each negativeTokens as token (token.id)}
+									<TokenCard {token} {granularityLevels} {isReadOnly} />
+								{/each}
+							{/if}
+						</div>
+					{:else}
+						<div
+							class="flex min-h-[40px] flex-wrap gap-2 border border-dashed border-error/30 p-2"
+							use:dndzone={{ items: dndNegativeItems, flipDurationMs, dragDisabled: isLoading }}
+							onconsider={handleNegativeDndConsider}
+							onfinalize={handleNegativeDndFinalize}
+						>
+							{#if negativeCount === 0}
+								<p class="w-full py-2 text-center text-sm text-base-content/50">
+									No negative tokens
+								</p>
+							{/if}
+							{#each dndNegativeItems as token (token.id)}
+								<div animate:flip={{ duration: flipDurationMs }}>
+									<TokenCard
+										{token}
+										{granularityLevels}
+										{isReadOnly}
+										onEdit={handleEditToken}
+										onDelete={handleDeleteToken}
+									/>
+								</div>
+							{/each}
+						</div>
+					{/if}
+				</div>
+			</div>
+		{/if}
 	{/if}
 </Card>
 

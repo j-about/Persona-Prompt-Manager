@@ -3,7 +3,13 @@
  */
 
 import { tauriInvoke } from './tauri';
-import type { Token, CreateTokenRequest, UpdateTokenRequest, GranularityLevel } from '$lib/types';
+import type {
+	Token,
+	CreateTokenRequest,
+	UpdateTokenRequest,
+	GranularityLevel,
+	ReorderTokensRequest
+} from '$lib/types';
 
 /** Create a new token */
 export async function createToken(request: CreateTokenRequest): Promise<Token> {
@@ -28,4 +34,9 @@ export async function deleteToken(id: string): Promise<void> {
 /** Get all granularity levels */
 export async function getGranularityLevels(): Promise<GranularityLevel[]> {
 	return tauriInvoke<GranularityLevel[]>('get_all_granularity_levels');
+}
+
+/** Reorder tokens within a persona (batch update display_order values) */
+export async function reorderTokens(request: ReorderTokensRequest): Promise<void> {
+	return tauriInvoke<void>('reorder_tokens', { request });
 }

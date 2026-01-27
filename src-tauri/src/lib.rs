@@ -103,6 +103,7 @@ pub fn run() {
             commands::token::update_token,
             commands::token::delete_token,
             commands::token::get_all_granularity_levels,
+            commands::token::reorder_tokens,
             // Prompt commands
             commands::prompt::compose_prompt,
             // Tokenizer commands

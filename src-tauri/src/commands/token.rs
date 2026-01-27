@@ -16,7 +16,8 @@
 use tauri::State;
 
 use crate::domain::token::{
-    BatchCreateTokenRequest, CreateTokenRequest, GranularityLevel, Token, UpdateTokenRequest,
+    BatchCreateTokenRequest, CreateTokenRequest, GranularityLevel, ReorderTokensRequest, Token,
+    UpdateTokenRequest,
 };
 use crate::error::AppError;
 use crate::infrastructure::database::repositories::TokenRepository;
@@ -24,8 +25,8 @@ use crate::AppState;
 
 /// Creates a single token for a persona.
 ///
-/// The token is automatically assigned the next display order within its
-/// granularity/polarity group.
+/// The token is automatically assigned the next global display order within
+/// the persona, appearing at the end of the token list.
 ///
 /// # Arguments
 ///
@@ -88,10 +89,10 @@ pub fn create_tokens_batch(
     )
 }
 
-/// Retrieves all tokens for a persona, organized by granularity and polarity.
+/// Retrieves all tokens for a persona in user-defined order.
 ///
-/// Tokens are returned ordered by `granularity_id`, polarity, and `display_order`
-/// for consistent presentation in the UI.
+/// Tokens are returned ordered by global `display_order` which reflects
+/// the user's drag-and-drop arrangement.
 ///
 /// # Arguments
 ///
@@ -181,4 +182,32 @@ pub fn delete_token(state: State<AppState>, id: String) -> Result<(), AppError> 
 #[must_use]
 pub fn get_all_granularity_levels() -> Vec<GranularityLevel> {
     GranularityLevel::all()
+}
+
+/// Reorders tokens within a persona.
+///
+/// Accepts a batch of token ID to display_order mappings and updates all
+/// positions atomically. The frontend computes the complete new ordering
+/// after drag-and-drop operations.
+///
+/// # Arguments
+///
+/// * `state` - Application state containing the database connection
+/// * `request` - Reorder request with `persona_id` and `token_orders` array
+///
+/// # Errors
+///
+/// Returns `AppError::Validation` if any token doesn't belong to the specified persona.
+/// Returns `AppError::NotFound` if any token ID doesn't exist.
+#[tauri::command]
+pub fn reorder_tokens(
+    state: State<AppState>,
+    request: ReorderTokensRequest,
+) -> Result<(), AppError> {
+    let db = state
+        .db
+        .lock()
+        .map_err(|_| AppError::Internal("Failed to acquire database lock".to_string()))?;
+
+    TokenRepository::reorder_tokens(db.connection(), &request)
 }

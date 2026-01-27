@@ -47,6 +47,10 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 	let positiveTokenCount = $state<TokenCount | null>(null);
 	/** Token count for negative prompt (CLIP tokenizer) */
 	let negativeTokenCount = $state<TokenCount | null>(null);
+	/** Token count for base positive prompt (excluding adhoc) */
+	let basePositiveTokenCount = $state<TokenCount | null>(null);
+	/** Token count for base negative prompt (excluding adhoc) */
+	let baseNegativeTokenCount = $state<TokenCount | null>(null);
 	/** Prompt composition in progress */
 	let isComposing = $state(false);
 	/** Token counting in progress */
@@ -146,6 +150,8 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 			basePrompt = null;
 			positiveTokenCount = null;
 			negativeTokenCount = null;
+			basePositiveTokenCount = null;
+			baseNegativeTokenCount = null;
 		}
 	});
 
@@ -166,6 +172,19 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 				adhoc_negative: null
 			};
 			basePrompt = await composePrompt(selectedPersonaId, baseOptions);
+
+			// Count tokens for base prompt
+			if (basePrompt) {
+				const [basePos, baseNeg] = await Promise.all([
+					countTokens(basePrompt.positive_prompt),
+					countTokens(basePrompt.negative_prompt)
+				]);
+				basePositiveTokenCount = basePos;
+				baseNegativeTokenCount = baseNeg;
+			} else {
+				basePositiveTokenCount = null;
+				baseNegativeTokenCount = null;
+			}
 
 			const finalOptions: CompositionOptions = {
 				include_weights: includeWeights,
@@ -418,7 +437,7 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 					<label class="flex cursor-pointer items-center gap-2">
 						<input
 							type="checkbox"
-							class="checkbox checkbox-sm checkbox-primary"
+							class="checkbox checkbox-sm checkbox-{level.color}"
 							checked={selectedGranularityIds.has(level.id)}
 							onchange={() => toggleGranularity(level.id)}
 						/>
@@ -431,7 +450,7 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 				<label class="flex cursor-pointer items-center gap-2">
 					<input
 						type="checkbox"
-						class="checkbox checkbox-sm checkbox-primary"
+						class="checkbox checkbox-sm checkbox-warning"
 						bind:checked={includeWeights}
 					/>
 					<span class="text-sm text-base-content">Include token weights</span>
@@ -447,18 +466,30 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 				<p class="py-8 text-center text-base-content/60">Select a persona to see the base prompt</p>
 			{:else if isComposing}
 				<div class="animate-pulse space-y-4">
-					<div class="h-16 rounded bg-base-300"></div>
-					<div class="h-16 rounded bg-base-300"></div>
+					<div class="h-16 bg-base-300"></div>
+					<div class="h-16 bg-base-300"></div>
 				</div>
 			{:else if basePrompt}
 				<div class="space-y-4">
 					<!-- Positive Base -->
 					<div>
-						<h3 class="mb-2 text-sm font-medium text-success">Positive</h3>
+						<div class="mb-2 flex items-center gap-2">
+							<span class="w-2-full inline-block h-2 bg-success"></span>
+							<h3 class="text-sm font-medium text-base-content">Positive</h3>
+							<TokenCountBadge tokenCount={basePositiveTokenCount} isLoading={isCountingTokens} />
+						</div>
 						<div class="min-h-[50px] border border-success/30 bg-success/10 p-3">
 							{#if basePrompt.positive_prompt}
-								<p class="text-sm break-words whitespace-pre-wrap text-base-content select-text">
-									{basePrompt.positive_prompt}
+								{@const positiveTokens = basePrompt.breakdown.sections.flatMap((s) =>
+									s.positive_tokens.map((t) => ({ content: t, color: s.granularity_color }))
+								)}
+								<p class="text-sm break-words whitespace-pre-wrap select-text">
+									{#each positiveTokens as token, i (i)}
+										<span class="text-{token.color}">{token.content}</span
+										>{#if i < positiveTokens.length - 1}<span class="text-base-content/60"
+												>,
+											</span>{/if}
+									{/each}
 								</p>
 							{:else}
 								<p class="text-sm text-base-content/60 italic">No positive tokens</p>
@@ -468,11 +499,23 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 
 					<!-- Negative Base -->
 					<div>
-						<h3 class="mb-2 text-sm font-medium text-error">Negative</h3>
+						<div class="mb-2 flex items-center gap-2">
+							<span class="w-2-full inline-block h-2 bg-error"></span>
+							<h3 class="text-sm font-medium text-base-content">Negative</h3>
+							<TokenCountBadge tokenCount={baseNegativeTokenCount} isLoading={isCountingTokens} />
+						</div>
 						<div class="min-h-[50px] border border-error/30 bg-error/10 p-3">
 							{#if basePrompt.negative_prompt}
-								<p class="text-sm break-words whitespace-pre-wrap text-base-content select-text">
-									{basePrompt.negative_prompt}
+								{@const negativeTokens = basePrompt.breakdown.sections.flatMap((s) =>
+									s.negative_tokens.map((t) => ({ content: t, color: s.granularity_color }))
+								)}
+								<p class="text-sm break-words whitespace-pre-wrap select-text">
+									{#each negativeTokens as token, i (i)}
+										<span class="text-{token.color}">{token.content}</span
+										>{#if i < negativeTokens.length - 1}<span class="text-base-content/60"
+												>,
+											</span>{/if}
+									{/each}
 								</p>
 							{:else}
 								<p class="text-sm text-base-content/60 italic">No negative tokens</p>
@@ -515,11 +558,8 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 							bind:value={aiContextDescription}
 							rows={3}
 							class="textarea-bordered textarea w-full"
-							placeholder="Describe the context or action"
+							placeholder="Describe what you want to generate. The AI will suggest relevant tokens."
 						></textarea>
-						<p class="mt-1 text-xs text-base-content/60">
-							Describe what you want to generate. The AI will suggest relevant tokens.
-						</p>
 					</div>
 
 					{#if aiGenerationError}
@@ -569,20 +609,14 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 			<h2 class="mb-4 text-lg font-semibold text-base-content">Ad-hoc Tokens</h2>
 
 			<div class="space-y-4">
-				<!-- Extra Positive with Total Token Count -->
+				<!-- Positive with Token Count -->
 				<div>
-					<div class="mb-1 flex items-center justify-between">
-						<label for="adhoc-positive" class="text-sm font-medium text-base-content">
-							Extra Positive
-						</label>
-						<div class="flex items-center gap-2">
-							<span class="text-xs text-base-content/60">Total:</span>
-							<TokenCountBadge
-								tokenCount={positiveTokenCount}
-								isLoading={isCountingTokens}
-								showBar={false}
-							/>
-						</div>
+					<div class="mb-1 flex items-center gap-2">
+						<span class="w-2-full inline-block h-2 bg-success"></span>
+						<label for="adhoc-positive" class="text-sm font-medium text-base-content"
+							>Positive</label
+						>
+						<TokenCountBadge tokenCount={positiveTokenCount} isLoading={isCountingTokens} />
 					</div>
 					<input
 						type="text"
@@ -593,20 +627,14 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 					/>
 				</div>
 
-				<!-- Extra Negative with Total Token Count -->
+				<!-- Negative with Token Count -->
 				<div>
-					<div class="mb-1 flex items-center justify-between">
-						<label for="adhoc-negative" class="text-sm font-medium text-base-content">
-							Extra Negative
-						</label>
-						<div class="flex items-center gap-2">
-							<span class="text-xs text-base-content/60">Total:</span>
-							<TokenCountBadge
-								tokenCount={negativeTokenCount}
-								isLoading={isCountingTokens}
-								showBar={false}
-							/>
-						</div>
+					<div class="mb-1 flex items-center gap-2">
+						<span class="w-2-full inline-block h-2 bg-error"></span>
+						<label for="adhoc-negative" class="text-sm font-medium text-base-content"
+							>Negative</label
+						>
+						<TokenCountBadge tokenCount={negativeTokenCount} isLoading={isCountingTokens} />
 					</div>
 					<input
 						type="text"
@@ -624,7 +652,10 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 
 						{#if aiGeneratedPositive.length > 0}
 							<div class="mb-3">
-								<span class="text-xs font-medium text-success">Positive:</span>
+								<div class="flex items-center gap-1">
+									<span class="w-2-full inline-block h-2 bg-success"></span>
+									<span class="text-xs font-medium text-base-content">Positive</span>
+								</div>
 								<div class="mt-1 flex flex-wrap gap-2">
 									{#each aiGeneratedPositive as token (token.content)}
 										<div
@@ -640,7 +671,7 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 												type="button"
 												class="btn px-1 btn-ghost btn-xs"
 												onclick={() => handleAcceptAiToken(token, 'positive')}
-												title="Add to Extra Positive">+</button
+												title="Add to Positive">+</button
 											>
 											<button
 												type="button"
@@ -656,7 +687,10 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 
 						{#if aiGeneratedNegative.length > 0}
 							<div>
-								<span class="text-xs font-medium text-error">Negative:</span>
+								<div class="flex items-center gap-1">
+									<span class="w-2-full inline-block h-2 bg-error"></span>
+									<span class="text-xs font-medium text-base-content">Negative</span>
+								</div>
 								<div class="mt-1 flex flex-wrap gap-2">
 									{#each aiGeneratedNegative as token (token.content)}
 										<div
@@ -672,7 +706,7 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 												type="button"
 												class="btn px-1 btn-ghost btn-xs"
 												onclick={() => handleAcceptAiToken(token, 'negative')}
-												title="Add to Extra Negative">+</button
+												title="Add to Negative">+</button
 											>
 											<button
 												type="button"
@@ -706,8 +740,8 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 			<p class="py-8 text-center text-base-content/60">Select a persona to compose a prompt</p>
 		{:else if isComposing}
 			<div class="animate-pulse space-y-4">
-				<div class="h-20 rounded bg-base-300"></div>
-				<div class="h-20 rounded bg-base-300"></div>
+				<div class="h-20 bg-base-300"></div>
+				<div class="h-20 bg-base-300"></div>
 			</div>
 		{:else if composedPrompt}
 			<div class="space-y-4">
@@ -715,7 +749,8 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 				<div>
 					<div class="mb-2 flex items-center justify-between">
 						<div class="flex items-center gap-2">
-							<h3 class="text-sm font-medium text-success">Positive Prompt</h3>
+							<span class="w-2-full inline-block h-2 bg-success"></span>
+							<h3 class="text-sm font-medium text-base-content">Positive</h3>
 							<TokenCountBadge tokenCount={positiveTokenCount} isLoading={isCountingTokens} />
 						</div>
 						<button type="button" class="btn btn-ghost btn-xs" onclick={handleCopyPositive}>
@@ -724,8 +759,20 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 					</div>
 					<div class="min-h-[60px] border border-success/30 bg-success/10 p-4">
 						{#if composedPrompt.positive_prompt}
-							<p class="text-sm break-words whitespace-pre-wrap text-base-content select-text">
-								{composedPrompt.positive_prompt}
+							{@const positiveTokens = composedPrompt.breakdown.sections.flatMap((s) =>
+								s.positive_tokens.map((t) => ({ content: t, color: s.granularity_color }))
+							)}
+							<p class="text-sm break-words whitespace-pre-wrap select-text">
+								{#each positiveTokens as token, i (i)}
+									<span class="text-{token.color}">{token.content}</span
+									>{#if i < positiveTokens.length - 1 || adhocPositive.trim()}<span
+											class="text-base-content/60"
+											>,
+										</span>{/if}
+								{/each}
+								{#if adhocPositive.trim()}
+									<span class="text-warning">{adhocPositive.trim()}</span>
+								{/if}
 							</p>
 						{:else}
 							<p class="text-sm text-base-content/60 italic">No positive tokens</p>
@@ -737,7 +784,8 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 				<div>
 					<div class="mb-2 flex items-center justify-between">
 						<div class="flex items-center gap-2">
-							<h3 class="text-sm font-medium text-error">Negative Prompt</h3>
+							<span class="w-2-full inline-block h-2 bg-error"></span>
+							<h3 class="text-sm font-medium text-base-content">Negative</h3>
 							<TokenCountBadge tokenCount={negativeTokenCount} isLoading={isCountingTokens} />
 						</div>
 						<button type="button" class="btn btn-ghost btn-xs" onclick={handleCopyNegative}>
@@ -746,8 +794,20 @@ and final prompt (with adhoc additions). Includes token counting for CLIP limits
 					</div>
 					<div class="min-h-[60px] border border-error/30 bg-error/10 p-4">
 						{#if composedPrompt.negative_prompt}
-							<p class="text-sm break-words whitespace-pre-wrap text-base-content select-text">
-								{composedPrompt.negative_prompt}
+							{@const negativeTokens = composedPrompt.breakdown.sections.flatMap((s) =>
+								s.negative_tokens.map((t) => ({ content: t, color: s.granularity_color }))
+							)}
+							<p class="text-sm break-words whitespace-pre-wrap select-text">
+								{#each negativeTokens as token, i (i)}
+									<span class="text-{token.color}">{token.content}</span
+									>{#if i < negativeTokens.length - 1 || adhocNegative.trim()}<span
+											class="text-base-content/60"
+											>,
+										</span>{/if}
+								{/each}
+								{#if adhocNegative.trim()}
+									<span class="text-warning">{adhocNegative.trim()}</span>
+								{/if}
 							</p>
 						{:else}
 							<p class="text-sm text-base-content/60 italic">No negative tokens</p>

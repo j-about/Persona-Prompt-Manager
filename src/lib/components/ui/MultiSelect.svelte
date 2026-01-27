@@ -66,9 +66,7 @@ Supports disabled options that cannot be selected.
 			/>
 		</svg>
 	</summary>
-	<ul
-		class="dropdown-content menu z-10 max-h-60 overflow-y-auto rounded-box bg-base-100 p-2 shadow"
-	>
+	<ul class="dropdown-content overflow-y-auto-box menu z-10 max-h-60 bg-base-100 p-2 shadow">
 		<li>
 			<button
 				type="button"

@@ -2,20 +2,28 @@
 @component
 Badge - Inline label component for status or category display.
 
-Supports semantic variants (positive/negative for tokens, info/warning)
-with soft styling for colored variants.
+Supports semantic variants (positive/negative for tokens, info/warning).
 -->
+<script lang="ts" module>
+	/**
+	 * Available badge color variants.
+	 * - Polarity variants: positive (green), negative (red)
+	 * - Status variants: info (blue), warning (orange), default (gray)
+	 */
+	export type BadgeVariant = 'default' | 'positive' | 'negative' | 'info' | 'warning';
+</script>
+
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 
 	/**
-	 * @property variant - Color scheme: positive (green), negative (red), info, warning, or default
+	 * @property variant - Color scheme for the badge
 	 * @property size - Badge size: sm or md
 	 * @property class - Additional CSS classes
 	 * @property children - Badge label content
 	 */
 	interface Props {
-		variant?: 'default' | 'positive' | 'negative' | 'info' | 'warning';
+		variant?: BadgeVariant;
 		size?: 'sm' | 'md';
 		class?: string;
 		children: Snippet;
@@ -24,7 +32,7 @@ with soft styling for colored variants.
 	let { variant = 'default', size = 'md', class: className = '', children }: Props = $props();
 
 	/** Maps variant to daisyUI badge classes */
-	const variantClasses: Record<string, string> = {
+	const variantClasses: Record<BadgeVariant, string> = {
 		default: 'badge-neutral',
 		positive: 'badge-success badge-soft',
 		negative: 'badge-error badge-soft',

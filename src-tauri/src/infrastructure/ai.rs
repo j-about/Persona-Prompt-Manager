@@ -10,7 +10,7 @@ use serde_json::json;
 
 use crate::domain::ai::{
     AiPersonaGenerationRequest, AiPersonaGenerationResponse, AiProvider, AiProviderConfig,
-    GeneratedToken, GeneratedTokensByGranularity, TokenGenerationRequest, TokenGenerationResponse,
+    GeneratedToken, TokenGenerationRequest, TokenGenerationResponse,
 };
 use crate::domain::DEFAULT_IMAGE_MODEL_ID;
 use crate::error::AppError;
@@ -68,8 +68,17 @@ fn build_persona_generation_system_prompt(
     format!(
         r#"You are an expert character designer and prompt engineer for {model_name} ({family} family) image generation.
 
-Your task is to create a complete persona profile with descriptive tokens organized by body region.
+Your task is to create a complete persona profile with tokens organized in an optimal order for image generation prompts.
+
 Maximum token budget: {total_tokens} tokens.
+
+TOKEN BUDGET REALITY:
+The budget counts sub-word units, not words or phrases:
+- Simple common words use fewer units than complex or rare words
+- Phrases consume more budget
+- Weight adds significant overhead—the parentheses, colon, and decimal each consume budget
+- An emphasized token uses more budget than its unweighted equivalent
+Prioritize concise, visually impactful tokens. Avoid verbose phrases when shorter alternatives convey the same meaning.
 
 TOKEN GENERATION RULES:
 1. Generate visually descriptive tokens suitable for AI image generation
@@ -85,18 +94,31 @@ Weights control emphasis in the final image prompt. Use this scale:
 - 1.1-1.2 (Emphasized): Defining character features, style-critical elements
 - 1.3-1.5 (Strongly Emphasized): Iconic must-have features (use sparingly, 1-2 max per persona)
 LIMITS: Never exceed 1.5 (causes artifacts). Never go below 0.6 (may not render).
+DISTRIBUTION: ~50-60% at 1.0, ~25% at 0.8-0.9, ~15% at 1.1-1.2, ~5% at 1.3+
 
-GRANULARITY ORGANIZATION:
-- style: Style tokens
+GRANULARITY CATEGORIES:
+Each token must be assigned to one of these categories via granularity_id:
+- style: Quality and style modifiers
 - general: Overall physical traits
-- hair
-- face
-- upper_body
-- midsection
-- lower_body
+- hair: Hair characteristics
+- face: Facial features
+- upper_body: Upper body details
+- midsection: Midsection details
+- lower_body: Lower body details
+
+TOKEN ORDERING BEST PRACTICES:
+Return tokens in OPTIMAL order for image generation prompts:
+1. Quality/style modifiers
+2. Subject identification
+3. Defining features
+4. Physical details
+5. Supporting details
+
+The array order you return determines the final prompt token sequence.
+Place high-impact, character-defining tokens earlier for maximum influence.
 
 TAG INFERENCE:
-Derive 1-3 relevant tags from the style and description (e.g., "fantasy", "female", "anime").{existing_tags_section}
+Derive 1-3 relevant tags from the style and description.{existing_tags_section}
 
 {description_instruction}"#,
         model_name = prompt_context.display_name,
@@ -286,7 +308,7 @@ The user provided the following instructions. You may reorganize, clarify wordin
     let description_example = if request.skip_ai_description {
         ""
     } else if request.improve_description_via_ai {
-        r#""description": "A graceful elven warrior with silver hair...",
+        r#""description": "<elaborated_character_narrative>",
   "#
     } else {
         ""
@@ -294,7 +316,7 @@ The user provided the following instructions. You may reorganize, clarify wordin
 
     // Example shows improving organization while preserving ALL original content
     let instructions_example = if should_improve_instructions {
-        r#""ai_instructions": "[Improved version of user's instructions with same content, better organization]",
+        r#""ai_instructions": "<improved_instructions_preserving_original_content>",
   "#
     } else {
         ""
@@ -306,42 +328,29 @@ Respond with a JSON object containing:
 {description_output_text}
 {instructions_output_text}
 - "tags" (array of strings): 1-3 relevant tags inferred from style and description
-- "tokens" (object): Token arrays organized by body region
+- "tokens" (array): Tokens in OPTIMAL ORDER for image generation
 
 Each token object contains:
 - "content" (string, required): The token text
 - "suggested_weight" (number, required): Weight value where 1.0 is normal emphasis
+- "granularity_id" (string, required): Category - one of: style, general, hair, face, upper_body, midsection, lower_body
 - "rationale" (string, optional): Brief explanation for this token
 
-IMPORTANT: Always apply any custom instructions provided above when generating all content.
+IMPORTANT: Generate creative tokens based on the user's input. Do not copy example placeholder values.
+The array order determines prompt token order. Place tokens strategically:
+- Quality tokens and style modifiers FIRST
+- Subject identifiers and defining features EARLY
+- Detail tokens LATER
 
-Example format:
+Always apply any custom instructions provided above when generating all content.
+
+Example format (use placeholders to show structure - generate actual values from user input):
 ```json
 {{
-  {description_example}{instructions_example}"tags": ["fantasy", "female", "elf"],
-  "tokens": {{
-    "style": [
-      {{"content": "masterpiece", "suggested_weight": 1.2, "rationale": "Quality boost"}}
-    ],
-    "general": [
-      {{"content": "fair skin", "suggested_weight": 1.0, "rationale": "Elven complexion"}}
-    ],
-    "hair": [
-      {{"content": "long silver hair", "suggested_weight": 1.1, "rationale": "Distinctive feature"}}
-    ],
-    "face": [
-      {{"content": "pointed ears", "suggested_weight": 1.2, "rationale": "Elven trait"}}
-    ],
-    "upper_body": [
-      {{"content": "slender build", "suggested_weight": 1.0, "rationale": "Elven physique"}}
-    ],
-    "midsection": [
-      {{"content": "narrow waist", "suggested_weight": 1.0, "rationale": "Athletic build"}}
-    ],
-    "lower_body": [
-      {{"content": "long legs", "suggested_weight": 1.0, "rationale": "Tall stature"}}
-    ]
-  }}
+  {description_example}{instructions_example}"tags": ["<genre>", "<subject_type>"],
+  "tokens": [
+    {{"content": "string (user-derived)", "suggested_weight": number, "granularity_id": "string ("style", "general", "hair", "face", "upper_body", "midsection", "lower_body")", "rationale": "string (optional)" }}
+  ]
 }}
 ```"#
     );
@@ -357,19 +366,6 @@ fn build_persona_generation_json_schema(
     improve_instructions_via_ai: bool,
     skip_ai_description: bool,
 ) -> serde_json::Value {
-    let token_array_schema = json!({
-        "type": "array",
-        "items": {
-            "type": "object",
-            "properties": {
-                "content": { "type": "string" },
-                "suggested_weight": { "type": "number" },
-                "rationale": { "type": "string" }
-            },
-            "required": ["content", "suggested_weight"]
-        }
-    });
-
     // Build required fields based on what AI should elaborate
     // Don't require description when skipping or when using user's original
     let mut required = vec!["tags", "tokens"];
@@ -413,17 +409,21 @@ fn build_persona_generation_json_schema(
                 "description": "1-3 relevant tags inferred from style and description"
             },
             "tokens": {
-                "type": "object",
-                "properties": {
-                    "style": token_array_schema,
-                    "general": token_array_schema,
-                    "hair": token_array_schema,
-                    "face": token_array_schema,
-                    "upper_body": token_array_schema,
-                    "midsection": token_array_schema,
-                    "lower_body": token_array_schema
-                },
-                "required": ["style", "general", "hair", "face", "upper_body", "midsection", "lower_body"]
+                "type": "array",
+                "description": "Tokens in optimal order for image generation prompts",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "content": { "type": "string" },
+                        "suggested_weight": { "type": "number" },
+                        "granularity_id": {
+                            "type": "string",
+                            "enum": ["style", "general", "hair", "face", "upper_body", "midsection", "lower_body"]
+                        },
+                        "rationale": { "type": "string" }
+                    },
+                    "required": ["content", "suggested_weight", "granularity_id"]
+                }
             }
         },
         "required": required_fields
@@ -440,7 +440,8 @@ struct PersonaGenerationRaw {
     #[serde(default)]
     ai_instructions: Option<String>,
     tags: Vec<String>,
-    tokens: GeneratedTokensByGranularity,
+    /// Tokens in AI-recommended optimal order
+    tokens: Vec<GeneratedToken>,
 }
 
 /// Parse the AI response for persona generation
@@ -560,7 +561,16 @@ fn build_token_generation_system_prompt(
         r"You are an expert prompt engineer for {model_name} ({family} family) image generation, specializing in token enhancement and refinement.
 
 Your task is to generate COMPLEMENTARY tokens that enhance an existing persona prompt for a specific context or action.
+
 Token budget: {limit} tokens per prompt.
+
+TOKEN BUDGET REALITY:
+The budget counts sub-word units, not words or phrases:
+- Simple common words use fewer units than complex or rare words
+- Phrases consume more budget
+- Weight adds significant overhead—the parentheses, colon, and decimal each consume budget
+- An emphasized token uses more budget than its unweighted equivalent
+Prioritize concise tokens over verbose alternatives that convey similar meaning.
 
 TOKEN GENERATION RULES:
 1. Generate visually descriptive tokens suitable for AI image generation
@@ -571,7 +581,7 @@ TOKEN GENERATION RULES:
 
 POSITIVE TOKEN GUIDELINES:
 - Enhance the scene, mood, composition, or specific visual elements
-- Add context-appropriate details (e.g., lighting, angle, expression, pose)
+- Add context-appropriate details
 - Complement existing tokens without redundancy
 - Use precise visual vocabulary appropriate for {model_name}
 
@@ -588,6 +598,7 @@ Weights control emphasis in the final image prompt. Use this scale:
 - 1.1-1.2 (Emphasized): Key scene elements, critical composition features
 - 1.3-1.5 (Strongly Emphasized): Must-have features for this specific context (use sparingly)
 LIMITS: Never exceed 1.5 (causes artifacts). Never go below 0.6 (may not render).
+DISTRIBUTION: ~50-60% at 1.0, ~25% at 0.8-0.9, ~15% at 1.1-1.2, ~5% at 1.3+
 
 ADHOC TOKEN CONTEXT:
 You are generating ad-hoc tokens for scene-specific enhancement: context, action, mood, lighting, composition, and quality modifiers.
@@ -747,13 +758,10 @@ Example format:
 ```json
 {
   "positive": [
-    {"content": "dramatic rim lighting", "suggested_weight": 1.2, "rationale": "Creates depth and visual interest for portrait"},
-    {"content": "shallow depth of field", "suggested_weight": 1.1, "rationale": "Focuses attention on subject"},
-    {"content": "golden hour atmosphere", "suggested_weight": 1.0, "rationale": "Warm, flattering lighting for outdoor scene"}
+    {"content": "string (user-derived)", "suggested_weight": number, "rationale": "string (optional)" }
   ],
   "negative": [
-    {"content": "harsh shadows", "suggested_weight": 1.0, "rationale": "Prevents unflattering lighting"},
-    {"content": "cluttered background", "suggested_weight": 1.1, "rationale": "Maintains focus on subject"}
+    {"content": "string (user-derived)", "suggested_weight": number, "rationale": "string (optional)" }
   ]
 }
 ```

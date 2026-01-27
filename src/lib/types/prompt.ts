@@ -23,6 +23,7 @@ export interface PromptBreakdown {
 export interface GranularitySection {
 	granularity_id: string;
 	granularity_name: string;
+	granularity_color: string;
 	positive_tokens: string[];
 	negative_tokens: string[];
 }

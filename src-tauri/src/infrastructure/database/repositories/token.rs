@@ -13,7 +13,9 @@
 use chrono::Utc;
 use rusqlite::{params, Connection};
 
-use crate::domain::token::{CreateTokenRequest, Token, TokenPolarity, UpdateTokenRequest};
+use crate::domain::token::{
+    CreateTokenRequest, ReorderTokensRequest, Token, TokenPolarity, UpdateTokenRequest,
+};
 use crate::error::AppError;
 
 /// Repository for token database operations.
@@ -77,7 +79,7 @@ impl TokenRepository {
 
     /// Retrieves all tokens for a persona.
     ///
-    /// Results are ordered by granularity, polarity, and display order.
+    /// Results are ordered by global display order (user-defined sequence).
     ///
     /// # Arguments
     ///
@@ -93,7 +95,7 @@ impl TokenRepository {
             SELECT id, persona_id, granularity_id, polarity, content, weight, display_order, created_at, updated_at
             FROM tokens
             WHERE persona_id = ?1
-            ORDER BY granularity_id, polarity, display_order
+            ORDER BY display_order
             ",
         )?;
 
@@ -170,20 +172,14 @@ impl TokenRepository {
         Ok(())
     }
 
-    /// Calculates the next display order for a new token (internal helper).
-    fn get_next_display_order(
-        conn: &Connection,
-        persona_id: &str,
-        granularity_id: &str,
-        polarity: TokenPolarity,
-    ) -> Result<i32, AppError> {
+    /// Calculates the next global display order for a new token (internal helper).
+    ///
+    /// Returns the next available position after all existing tokens in the persona.
+    fn get_next_display_order(conn: &Connection, persona_id: &str) -> Result<i32, AppError> {
         let max_order: Option<i32> = conn
             .query_row(
-                r"
-                SELECT MAX(display_order) FROM tokens
-                WHERE persona_id = ?1 AND granularity_id = ?2 AND polarity = ?3
-                ",
-                params![persona_id, granularity_id, polarity.as_str()],
+                r"SELECT MAX(display_order) FROM tokens WHERE persona_id = ?1",
+                [persona_id],
                 |row| row.get(0),
             )
             .ok();
@@ -193,8 +189,8 @@ impl TokenRepository {
 
     /// Creates a new token from a request.
     ///
-    /// Automatically assigns the next display order for the token's
-    /// persona/granularity/polarity group.
+    /// Automatically assigns the next global display order for the token
+    /// within the persona.
     ///
     /// # Arguments
     ///
@@ -209,12 +205,7 @@ impl TokenRepository {
     ///
     /// Returns `AppError::Database` if the insert fails.
     pub fn create(conn: &Connection, request: &CreateTokenRequest) -> Result<Token, AppError> {
-        let display_order = Self::get_next_display_order(
-            conn,
-            &request.persona_id,
-            &request.granularity_id,
-            request.polarity,
-        )?;
+        let display_order = Self::get_next_display_order(conn, &request.persona_id)?;
 
         let token = Token::new(
             request.persona_id.clone(),
@@ -232,9 +223,8 @@ impl TokenRepository {
 
     /// Creates multiple tokens in batch.
     ///
-    /// Each token is assigned sequential display orders starting from the
-    /// next available order for the persona/granularity/polarity group.
-    /// Empty content strings are skipped.
+    /// Each token is assigned sequential global display orders starting from the
+    /// next available position within the persona. Empty content strings are skipped.
     ///
     /// # Arguments
     ///
@@ -261,8 +251,7 @@ impl TokenRepository {
         weight: f64,
     ) -> Result<Vec<Token>, AppError> {
         let mut tokens = Vec::new();
-        let mut display_order =
-            Self::get_next_display_order(conn, persona_id, granularity_id, polarity)?;
+        let mut display_order = Self::get_next_display_order(conn, persona_id)?;
 
         for content in contents {
             if content.trim().is_empty() {
@@ -284,6 +273,47 @@ impl TokenRepository {
         }
 
         Ok(tokens)
+    }
+
+    /// Reorders tokens within a persona by updating display_order values.
+    ///
+    /// All updates are performed atomically. The frontend computes the new
+    /// ordering after drag-and-drop operations.
+    ///
+    /// # Arguments
+    ///
+    /// * `conn` - Database connection reference
+    /// * `request` - Reorder request with persona_id and token_orders
+    ///
+    /// # Errors
+    ///
+    /// Returns `AppError::Validation` if any token doesn't belong to the persona.
+    /// Returns `AppError::Database` for database errors.
+    pub fn reorder_tokens(
+        conn: &Connection,
+        request: &ReorderTokensRequest,
+    ) -> Result<(), AppError> {
+        // Validate all tokens belong to the persona
+        for order in &request.token_orders {
+            let token = Self::find_by_id(conn, &order.token_id)?;
+            if token.persona_id != request.persona_id {
+                return Err(AppError::Validation(format!(
+                    "Token '{}' does not belong to persona '{}'",
+                    order.token_id, request.persona_id
+                )));
+            }
+        }
+
+        // Update all display_orders
+        let now = Utc::now().to_rfc3339();
+        for order in &request.token_orders {
+            conn.execute(
+                r"UPDATE tokens SET display_order = ?1, updated_at = ?2 WHERE id = ?3",
+                params![order.display_order, &now, &order.token_id],
+            )?;
+        }
+
+        Ok(())
     }
 
     /// Helper function to convert a row to a Token

@@ -21,7 +21,7 @@ Used primarily in PersonaCard for displaying category tags.
 </script>
 
 <span
-	class="inline-flex items-center rounded bg-base-300 px-2 py-0.5 text-xs font-medium text-base-content {className}"
+	class="inline-flex items-center bg-base-300 px-2 py-0.5 text-xs font-medium text-base-content {className}"
 >
 	{@render children()}
 </span>

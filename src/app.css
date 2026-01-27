@@ -3,6 +3,10 @@
 	themes: cyberpunk --default;
 }
 
+/* Safelist for dynamically-constructed granularity color classes */
+/* prettier-ignore */
+@source inline("{badge,bg,checkbox,text}-{neutral,secondary,accent,info,success,primary,error,warning}{,-content}");
+
 @layer base {
 	body {
 		user-select: none;

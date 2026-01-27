@@ -11,6 +11,8 @@ export type TokenPolarity = 'positive' | 'negative';
 export interface GranularityLevel {
 	id: string;
 	name: string;
+	/** DaisyUI color name for styling (e.g., "primary", "secondary") */
+	color: string;
 	display_order: number;
 	is_default: boolean;
 	created_at: ISODateString;
@@ -56,6 +58,22 @@ export interface UpdateTokenRequest {
 	polarity?: TokenPolarity;
 }
 
+/** Single token ordering update within a reorder request */
+export interface TokenOrderUpdate {
+	/** Token UUID */
+	token_id: string;
+	/** New global display order position */
+	display_order: number;
+}
+
+/** Request to reorder tokens within a persona */
+export interface ReorderTokensRequest {
+	/** Parent persona UUID */
+	persona_id: string;
+	/** Token ID to display_order mappings */
+	token_orders: TokenOrderUpdate[];
+}
+
 /**
  * Represents a pending token operation during edit mode.
  *
@@ -64,6 +82,7 @@ export interface UpdateTokenRequest {
  * - 'create': New token with a temporary ID (replaced with real ID on save)
  * - 'update': Tracks original data for rollback and the specific field changes
  * - 'delete': Stores original data to restore if edit is cancelled
+ * - 'reorder': Batch update of display_order values from drag-and-drop
  *
  * @example
  * // Create operation
@@ -74,11 +93,15 @@ export interface UpdateTokenRequest {
  *
  * // Delete operation
  * { type: 'delete', id: 'real-id', originalData: {...} }
+ *
+ * // Reorder operation
+ * { type: 'reorder', orders: [{ token_id: 'id1', display_order: 0 }, ...] }
  */
 export type DraftTokenOperation =
 	| { type: 'create'; tempId: string; data: Omit<Token, 'created_at' | 'updated_at'> }
 	| { type: 'update'; id: string; originalData: Token; updates: UpdateTokenRequest }
-	| { type: 'delete'; id: string; originalData: Token };
+	| { type: 'delete'; id: string; originalData: Token }
+	| { type: 'reorder'; orders: TokenOrderUpdate[] };
 
 /**
  * Draft state for token editing session.

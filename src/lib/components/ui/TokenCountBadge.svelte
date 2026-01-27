@@ -52,7 +52,7 @@ Used throughout the app to show prompt length status.
 		<div class="flex animate-pulse items-center gap-2">
 			<div class="h-4 w-12 skeleton"></div>
 			{#if showBar}
-				<div class="h-1.5 w-20 skeleton rounded-full"></div>
+				<div class="h-1.5 w-20 skeleton"></div>
 			{/if}
 		</div>
 	{:else if tokenCount}

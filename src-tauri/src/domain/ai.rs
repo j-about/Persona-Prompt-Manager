@@ -194,6 +194,9 @@ pub struct GeneratedToken {
     pub suggested_weight: f64,
     /// AI's explanation for suggesting this token
     pub rationale: Option<String>,
+    /// Granularity category (only set for persona generation, not ad-hoc token generation)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub granularity_id: Option<String>,
 }
 
 // ============================================================================
@@ -374,25 +377,6 @@ pub struct AiPersonaGenerationRequest {
     pub skip_ai_description: bool,
 }
 
-/// Generated tokens organized by granularity level.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct GeneratedTokensByGranularity {
-    /// Style tokens (e.g., "masterpiece", "photorealistic", "anime style", "oil painting")
-    pub style: Vec<GeneratedToken>,
-    /// General physical trait tokens
-    pub general: Vec<GeneratedToken>,
-    /// Hair-related tokens
-    pub hair: Vec<GeneratedToken>,
-    /// Face-related tokens
-    pub face: Vec<GeneratedToken>,
-    /// Upper body tokens
-    pub upper_body: Vec<GeneratedToken>,
-    /// Midsection tokens
-    pub midsection: Vec<GeneratedToken>,
-    /// Lower body tokens
-    pub lower_body: Vec<GeneratedToken>,
-}
 
 /// Response from AI persona generation.
 ///
@@ -407,8 +391,9 @@ pub struct AiPersonaGenerationResponse {
     pub ai_instructions: Option<String>,
     /// Inferred tags from style and character description
     pub tags: Vec<String>,
-    /// Generated tokens organized by granularity
-    pub tokens: GeneratedTokensByGranularity,
+    /// Generated tokens in AI-recommended optimal order for prompt composition.
+    /// Each token includes `granularity_id` for UI categorization.
+    pub tokens: Vec<GeneratedToken>,
     /// Provider that handled the request
     pub provider: AiProvider,
     /// Model used for generation
