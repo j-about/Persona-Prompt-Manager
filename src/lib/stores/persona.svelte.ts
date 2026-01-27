@@ -16,13 +16,6 @@ function createPersonaStore() {
 	let error = $state<string | null>(null);
 
 	// Derived values
-	const sortedPersonas = $derived(
-		[...personas].sort((a, b) => {
-			// Sort by updated_at descending (most recent first)
-			return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
-		})
-	);
-
 	const personaCount = $derived(personas.length);
 
 	// Actions
@@ -134,9 +127,6 @@ function createPersonaStore() {
 		// State getters (reactive via $derived where needed)
 		get personas() {
 			return personas;
-		},
-		get sortedPersonas() {
-			return sortedPersonas;
 		},
 		get selectedPersona() {
 			return selectedPersona;

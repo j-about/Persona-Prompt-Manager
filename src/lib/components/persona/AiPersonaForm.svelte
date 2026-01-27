@@ -269,7 +269,7 @@ uses an AI provider to generate description and tokens.
 				ai_instructions: finalInstructions
 			});
 
-			// 5.5. Set generation parameters with selected image model
+			// 8. Set generation parameters with selected image model
 			await updateGenerationParams({
 				persona_id: persona.id,
 				model_id: imageModelId,
@@ -280,7 +280,7 @@ uses an AI provider to generate description and tokens.
 				scheduler: null
 			});
 
-			// 6. Create tokens in AI-recommended optimal order
+			// 9. Create tokens in AI-recommended optimal order
 			for (const token of aiResponse.tokens) {
 				await createToken({
 					persona_id: persona.id,
@@ -291,7 +291,7 @@ uses an AI provider to generate description and tokens.
 				});
 			}
 
-			// 7. Success - navigate to the new persona
+			// 10. Success - navigate to the new persona
 			onCreated(persona.id);
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to generate persona';

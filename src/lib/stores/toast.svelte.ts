@@ -38,7 +38,6 @@ function createToastStore() {
 		get toasts() {
 			return toasts;
 		},
-		show,
 		dismiss,
 		success
 	};

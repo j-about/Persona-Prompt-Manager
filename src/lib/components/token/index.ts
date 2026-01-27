@@ -1,6 +1,3 @@
 // Re-export token components
-export { default as TokenCard } from './TokenCard.svelte';
-export { default as TokenInput } from './TokenInput.svelte';
-export { default as TokenLegend } from './TokenLegend.svelte';
-export { default as TokenEditModal } from './TokenEditModal.svelte';
+// Note: TokenCard, TokenInput, TokenLegend, TokenEditModal are internal-only (used via direct imports in TokenManager)
 export { default as TokenManager } from './TokenManager.svelte';

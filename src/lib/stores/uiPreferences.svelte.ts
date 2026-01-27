@@ -69,11 +69,6 @@ function createUiPreferencesStore() {
 		personaListTags = [...tags];
 	}
 
-	/** Clear the persona list tags filter */
-	function clearPersonaListTags(): void {
-		personaListTags = [];
-	}
-
 	// === Persistent Preference Actions ===
 
 	/**
@@ -104,7 +99,6 @@ function createUiPreferencesStore() {
 		// Actions
 		initialize,
 		setPersonaListTags,
-		clearPersonaListTags,
 		setPersonaListSort
 	};
 }
