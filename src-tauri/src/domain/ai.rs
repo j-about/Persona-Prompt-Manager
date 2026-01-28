@@ -253,6 +253,8 @@ pub struct PhysicalCriteriaHair {
 pub struct PhysicalCriteriaFace {
     /// Eye color (e.g., "brown", "blue", "green")
     pub eye_color: Option<String>,
+    /// Eye color shade (e.g., "Ice Blue", "Emerald", "Chocolate")
+    pub eye_color_shade: Option<String>,
     /// Eye shape (e.g., "almond", "round", "hooded")
     pub eye_shape: Option<String>,
     /// Face shape (e.g., "oval", "round", "heart")

@@ -68,11 +68,106 @@ Used within AiPersonaForm to guide AI generation.
 		Fantasy: ['No preference', 'Blue', 'Green', 'Pink', 'Purple', 'Teal', 'Multi-colored']
 	};
 
+	// Eye shade options based on main color (ordered light → dark)
+	const eyeShadeOptions: Record<string, string[]> = {
+		Gray: [
+			'No preference',
+			'Ice Gray',
+			'Pale Gray',
+			'Silver',
+			'Steel Gray',
+			'Slate Gray',
+			'Storm Gray',
+			'Ash Gray',
+			'Charcoal',
+			'Gunmetal'
+		],
+		Blue: [
+			'No preference',
+			'Ice Blue',
+			'Powder Blue',
+			'Sky Blue',
+			'Cerulean',
+			'Sapphire',
+			'Steel Blue',
+			'Royal Blue',
+			'Cobalt',
+			'Navy',
+			'Midnight Blue'
+		],
+		Green: [
+			'No preference',
+			'Mint Green',
+			'Sea Green',
+			'Jade',
+			'Emerald',
+			'Forest Green',
+			'Olive',
+			'Moss Green',
+			'Teal',
+			'Viridian'
+		],
+		Hazel: [
+			'No preference',
+			'Golden Hazel',
+			'Green-Gold Hazel',
+			'Brown-Gold Hazel',
+			'Amber-Flecked Hazel',
+			'Copper Hazel',
+			'Greenish Hazel',
+			'Brownish Hazel'
+		],
+		Amber: [
+			'No preference',
+			'Honey Amber',
+			'Golden Amber',
+			'Copper Amber',
+			'True Amber',
+			'Wolf Amber'
+		],
+		Brown: [
+			'No preference',
+			'Light Brown',
+			'Caramel',
+			'Hazelnut',
+			'Warm Brown',
+			'Medium Brown',
+			'Chocolate',
+			'Mocha',
+			'Coffee',
+			'Espresso',
+			'Dark Brown'
+		],
+		Heterochromia: [
+			'No preference',
+			'Complete (different colors)',
+			'Central (ring around pupil)',
+			'Sectoral (wedge pattern)'
+		],
+		Red: ['No preference', 'Pale Red', 'Crimson', 'Ruby', 'Bright Red', 'Blood Red', 'Scarlet'],
+		Purple: ['No preference', 'Lavender', 'Lilac', 'Violet', 'Amethyst', 'Plum', 'Deep Purple'],
+		Gold: [
+			'No preference',
+			'Pale Gold',
+			'Bright Gold',
+			'Molten Gold',
+			'Burnished Gold',
+			'Deep Gold'
+		]
+	};
+
 	// Get available shades based on selected main color
 	const availableShades = $derived(() => {
 		const mainColor = criteria.hair?.color;
 		if (!mainColor || mainColor === 'No preference') return [];
 		return hairShadeOptions[mainColor] || [];
+	});
+
+	// Get available eye shades based on selected main eye color
+	const availableEyeShades = $derived(() => {
+		const mainColor = criteria.face?.eyeColor;
+		if (!mainColor || mainColor === 'No preference') return [];
+		return eyeShadeOptions[mainColor] || [];
 	});
 
 	// Field type definition
@@ -594,6 +689,13 @@ Used within AiPersonaForm to guide AI generation.
 				delete criteria.hair.colorShade;
 			}
 		}
+
+		// Reset eye shade when main eye color changes
+		if (granularity === 'face' && fieldId === 'eyeColor') {
+			if (criteria.face) {
+				delete criteria.face.eyeColorShade;
+			}
+		}
 	}
 
 	function updateHairShade(value: string) {
@@ -604,6 +706,17 @@ Used within AiPersonaForm to guide AI generation.
 			delete criteria.hair.colorShade;
 		} else {
 			criteria.hair.colorShade = value;
+		}
+	}
+
+	function updateEyeShade(value: string) {
+		if (!criteria.face) {
+			criteria.face = {};
+		}
+		if (value === 'No preference') {
+			delete criteria.face.eyeColorShade;
+		} else {
+			criteria.face.eyeColorShade = value;
 		}
 	}
 
@@ -658,29 +771,51 @@ Used within AiPersonaForm to guide AI generation.
 									{/each}
 								</select>
 							</div>
-						{/each}
 
-						<!-- Hair shade selector (only shown when hair color is selected in Color subgroup) -->
-						{#if granularityId === 'hair' && subgroup.label === 'Color' && availableShades().length > 0}
-							<div class="flex items-center gap-1">
-								<label
-									for="hair-colorShade"
-									class="min-w-20 text-xs whitespace-nowrap text-base-content/70"
-								>
-									Shade:
-								</label>
-								<select
-									id="hair-colorShade"
-									class="select-bordered select min-w-0 flex-1 select-xs"
-									value={criteria.hair?.colorShade ?? 'No preference'}
-									onchange={(e) => updateHairShade(e.currentTarget.value)}
-								>
-									{#each availableShades() as shade (shade)}
-										<option value={shade}>{shade}</option>
-									{/each}
-								</select>
-							</div>
-						{/if}
+							<!-- Hair shade selector (shown immediately after hair color field) -->
+							{#if granularityId === 'hair' && field.id === 'color' && availableShades().length > 0}
+								<div class="flex items-center gap-1">
+									<label
+										for="hair-colorShade"
+										class="min-w-20 text-xs whitespace-nowrap text-base-content/70"
+									>
+										Shade:
+									</label>
+									<select
+										id="hair-colorShade"
+										class="select-bordered select min-w-0 flex-1 select-xs"
+										value={criteria.hair?.colorShade ?? 'No preference'}
+										onchange={(e) => updateHairShade(e.currentTarget.value)}
+									>
+										{#each availableShades() as shade (shade)}
+											<option value={shade}>{shade}</option>
+										{/each}
+									</select>
+								</div>
+							{/if}
+
+							<!-- Eye shade selector (shown immediately after eye color field) -->
+							{#if granularityId === 'face' && field.id === 'eyeColor' && availableEyeShades().length > 0}
+								<div class="flex items-center gap-1">
+									<label
+										for="face-eyeColorShade"
+										class="min-w-20 text-xs whitespace-nowrap text-base-content/70"
+									>
+										Shade:
+									</label>
+									<select
+										id="face-eyeColorShade"
+										class="select-bordered select min-w-0 flex-1 select-xs"
+										value={criteria.face?.eyeColorShade ?? 'No preference'}
+										onchange={(e) => updateEyeShade(e.currentTarget.value)}
+									>
+										{#each availableEyeShades() as shade (shade)}
+											<option value={shade}>{shade}</option>
+										{/each}
+									</select>
+								</div>
+							{/if}
+						{/each}
 					</div>
 
 					{#if subgroupIndex < category.subgroups.length - 1}

@@ -137,6 +137,8 @@ export interface PhysicalCriteriaHair {
 export interface PhysicalCriteriaFace {
 	/** Eye color */
 	eyeColor?: string | null;
+	/** Eye color shade (specific shade within main color) */
+	eyeColorShade?: string | null;
 	/** Eye shape */
 	eyeShape?: string | null;
 	/** Face shape */
